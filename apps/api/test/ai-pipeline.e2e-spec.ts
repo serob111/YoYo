@@ -317,6 +317,84 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
       const unchangedLead = await prisma.lead.findUniqueOrThrow({ where: { id: otherLead.id } });
       expect(unchangedLead.stageId).toBe(otherPipeline.stages[0]!.id);
     });
+
+    it("schedules a follow-up via SCHEDULE_FOLLOW_UP with an explicit leadId", async () => {
+      const { triggerMessage, organization, conversation } = await seedAiActiveConversation();
+      const prisma = getPrisma(app);
+      const pipeline = await getOrCreateDefaultPipeline(prisma, organization.id);
+      const lead = await prisma.lead.create({
+        data: {
+          organizationId: organization.id,
+          contactId: conversation.contactId,
+          pipelineId: pipeline.id,
+          stageId: pipeline.stages[0]!.id,
+          title: "Existing lead"
+        }
+      });
+
+      const provider = new ScriptedAIProvider([
+        {
+          stopReason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "submit_reply",
+              input: {
+                reply: "I'll follow up with you in 2 days!",
+                intent: "other",
+                needsHuman: false,
+                actions: [{ type: "SCHEDULE_FOLLOW_UP", leadId: lead.id, delayMinutes: 2880, message: "Just checking in!" }]
+              }
+            }
+          ],
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 }
+        }
+      ]);
+
+      const result = await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+      expect(result).toBe("sent");
+      const followUp = await prisma.followUp.findFirstOrThrow({ where: { leadId: lead.id } });
+      expect(followUp.actionType).toBe("SEND_MESSAGE");
+      expect((followUp.actionConfig as { text: string }).text).toBe("Just checking in!");
+      expect(followUp.scheduledFor.getTime()).toBeGreaterThan(Date.now() + 2870 * 60_000);
+    });
+
+    it("resolves SCHEDULE_FOLLOW_UP to the contact's most recent lead when leadId is omitted", async () => {
+      const { triggerMessage, organization, conversation } = await seedAiActiveConversation();
+      const prisma = getPrisma(app);
+
+      const provider = new ScriptedAIProvider([
+        {
+          stopReason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "submit_reply",
+              input: {
+                reply: "I'll note that down and follow up with you in 2 days!",
+                intent: "booking",
+                needsHuman: false,
+                actions: [
+                  { type: "CREATE_LEAD", title: "New inquiry" },
+                  { type: "SCHEDULE_FOLLOW_UP", delayMinutes: 2880, message: "Following up on your inquiry!" }
+                ]
+              }
+            }
+          ],
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 }
+        }
+      ]);
+
+      const result = await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+      expect(result).toBe("sent");
+      const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: organization.id, contactId: conversation.contactId } });
+      const followUp = await prisma.followUp.findFirstOrThrow({ where: { leadId: lead.id } });
+      expect((followUp.actionConfig as { text: string }).text).toBe("Following up on your inquiry!");
+    });
   });
 
   describe("searchKnowledge (real pgvector similarity, tenant-scoped)", () => {

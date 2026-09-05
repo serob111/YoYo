@@ -24,6 +24,8 @@ import { PipelinesModule } from "./pipelines/pipelines.module";
 import { LeadsModule } from "./leads/leads.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { TagsModule } from "./tags/tags.module";
+import { FollowUpsModule } from "./follow-ups/follow-ups.module";
+import { AutomationsModule } from "./automations/automations.module";
 
 @Module({
   imports: [
@@ -48,7 +50,9 @@ import { TagsModule } from "./tags/tags.module";
     PipelinesModule,
     LeadsModule,
     TasksModule,
-    TagsModule
+    TagsModule,
+    FollowUpsModule,
+    AutomationsModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })

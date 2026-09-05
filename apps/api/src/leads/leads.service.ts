@@ -2,11 +2,16 @@ import { Injectable } from "@nestjs/common";
 import { getOrCreateDefaultPipeline } from "@yoyo/database";
 import type { UpdateLeadInput, UpsertLeadInput } from "@yoyo/contracts";
 import { PrismaService } from "../common/prisma.service";
+import { OutboxService } from "../common/outbox.service";
+import { RequestContext } from "../common/request-context";
 import { NotFoundDomainError } from "../common/domain-errors";
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService
+  ) {}
 
   async list(organizationId: string, filters: { stageId?: string; contactId?: string }, cursor?: string, take = 30) {
     const leads = await this.prisma.client.lead.findMany({
@@ -46,17 +51,31 @@ export class LeadsService {
     const firstStage = pipeline.stages[0];
     if (!firstStage) throw new Error("Default pipeline was created with no stages - this should never happen");
 
-    return this.prisma.client.lead.create({
-      data: {
+    const requestId = RequestContext.current()?.requestId ?? "api";
+
+    return this.prisma.client.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          organizationId,
+          contactId: input.contactId,
+          pipelineId: pipeline.id,
+          stageId: firstStage.id,
+          title: input.title,
+          valueCents: input.valueCents ?? null,
+          currency: input.currency,
+          assignedUserId: input.assignedUserId ?? null
+        }
+      });
+
+      await this.outbox.record(tx, {
         organizationId,
-        contactId: input.contactId,
-        pipelineId: pipeline.id,
-        stageId: firstStage.id,
-        title: input.title,
-        valueCents: input.valueCents ?? null,
-        currency: input.currency,
-        assignedUserId: input.assignedUserId ?? null
-      }
+        aggregateType: "Lead",
+        aggregateId: lead.id,
+        eventType: "lead.created",
+        payload: { requestId }
+      });
+
+      return lead;
     });
   }
 
@@ -78,14 +97,34 @@ export class LeadsService {
     const stage = await this.prisma.client.pipelineStage.findUnique({ where: { id: stageId } });
     if (!stage || stage.pipelineId !== lead.pipelineId) throw new NotFoundDomainError("Pipeline stage");
 
+    const requestId = RequestContext.current()?.requestId ?? "api";
+    const isClosing = stage.isWon || stage.isLost;
+
     return this.prisma.client.$transaction(async (tx) => {
       const updated = await tx.lead.update({
         where: { id: leadId },
-        data: { stageId, closedAt: stage.isWon || stage.isLost ? new Date() : null }
+        data: { stageId, closedAt: isClosing ? new Date() : null }
       });
       await tx.activity.create({
         data: { organizationId, leadId, type: "STAGE_CHANGE", content: `Stage changed to ${stage.name}` }
       });
+
+      // Don't follow up on a deal that's now closed.
+      if (isClosing) {
+        await tx.followUp.updateMany({
+          where: { leadId, status: "PENDING" },
+          data: { status: "CANCELLED", cancelledAt: new Date() }
+        });
+      }
+
+      await this.outbox.record(tx, {
+        organizationId,
+        aggregateType: "Lead",
+        aggregateId: leadId,
+        eventType: "lead.stage_changed",
+        payload: { requestId, fromStageId: lead.stageId, toStageId: stageId }
+      });
+
       return updated;
     });
   }

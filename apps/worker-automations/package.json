@@ -1,0 +1,31 @@
+{
+  "name": "@yoyo/worker-automations",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/exports.js",
+  "types": "./dist/exports.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@yoyo/config": "workspace:*",
+    "@yoyo/database": "workspace:*",
+    "@yoyo/logger": "workspace:*",
+    "@yoyo/queue": "workspace:*",
+    "bullmq": "^5.15.0",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@yoyo/eslint-config": "workspace:*",
+    "@yoyo/typescript-config": "workspace:*",
+    "@types/node": "^22.7.4",
+    "eslint": "^8.57.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.3"
+  }
+}

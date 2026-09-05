@@ -124,6 +124,15 @@ export function loadAiWorkerEnv(source: NodeJS.ProcessEnv = process.env): AiWork
   return loadWith(aiWorkerEnvSchema, source);
 }
 
+// worker-automations: executes due follow-ups and fires automation triggers.
+// No external provider credentials - it only reuses the existing outbound-send
+// pipeline (worker-messaging) and internal Prisma-backed CRM tables.
+export const automationsWorkerEnvSchema = coreWorkerEnvSchema;
+export type AutomationsWorkerEnv = z.infer<typeof automationsWorkerEnvSchema>;
+export function loadAutomationsWorkerEnv(source: NodeJS.ProcessEnv = process.env): AutomationsWorkerEnv {
+  return loadWith(automationsWorkerEnvSchema, source);
+}
+
 export const webEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url()
 });

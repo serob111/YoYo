@@ -5,7 +5,9 @@ export type OutboxEventType =
   | "webhook.received"
   | "message.outbound_pending"
   | "message.inbound_received"
-  | "knowledge_chunk.embedding_pending";
+  | "knowledge_chunk.embedding_pending"
+  | "lead.created"
+  | "lead.stage_changed";
 
 export interface RecordOutboxEventInput {
   organizationId?: string;

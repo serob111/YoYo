@@ -25,7 +25,17 @@ export const AiActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("REQUEST_HUMAN_TAKEOVER") }),
   z.object({ type: z.literal("CREATE_LEAD"), title: z.string().min(1) }),
   z.object({ type: z.literal("UPDATE_LEAD_STAGE"), leadId: z.string().min(1), stageId: z.string().min(1) }),
-  z.object({ type: z.literal("ADD_TAG"), leadId: z.string().min(1), tagId: z.string().min(1) })
+  z.object({ type: z.literal("ADD_TAG"), leadId: z.string().min(1), tagId: z.string().min(1) }),
+  // leadId is optional - if omitted, the caller resolves it to the contact's
+  // most-recently-created lead (covers "I just created a lead in this same
+  // reply and want to follow up on it," since the model can't know a
+  // not-yet-created row's id ahead of time). Capped at 30 days.
+  z.object({
+    type: z.literal("SCHEDULE_FOLLOW_UP"),
+    leadId: z.string().min(1).optional(),
+    delayMinutes: z.number().int().positive().max(43_200),
+    message: z.string().min(1)
+  })
 ]);
 export type AiAction = z.infer<typeof AiActionSchema>;
 
@@ -146,6 +156,17 @@ export const SUBMIT_REPLY_TOOL: AIToolDefinition = {
               type: "object",
               properties: { type: { const: "ADD_TAG" }, leadId: { type: "string" }, tagId: { type: "string" } },
               required: ["type", "leadId", "tagId"],
+              additionalProperties: false
+            },
+            {
+              type: "object",
+              properties: {
+                type: { const: "SCHEDULE_FOLLOW_UP" },
+                leadId: { type: "string", description: "Omit to use the customer's most recently created lead." },
+                delayMinutes: { type: "integer", minimum: 1, maximum: 43200 },
+                message: { type: "string", description: "The message to send the customer when the follow-up fires." }
+              },
+              required: ["type", "delayMinutes", "message"],
               additionalProperties: false
             }
           ]

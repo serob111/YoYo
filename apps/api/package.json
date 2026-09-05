@@ -47,6 +47,7 @@
     "@yoyo/testing": "workspace:*",
     "@yoyo/typescript-config": "workspace:*",
     "@yoyo/worker-ai": "workspace:*",
+    "@yoyo/worker-automations": "workspace:*",
     "@yoyo/worker-messaging": "workspace:*",
     "@yoyo/worker-webhooks": "workspace:*",
     "eslint": "^8.57.1",

@@ -29,13 +29,13 @@ Owns the sales agent orchestration, knowledge base/RAG, and AI usage accounting.
 
 ## CRM (Phase 4 — implemented)
 
-Owns leads, pipelines, activities, tasks, tags (`ContactsModule` ended up living here too - Phase 2 designed it under Messaging but never implemented it, so Phase 4 added it since CRM needed contact read access first). AI tool calls mutate CRM only through the declarative `CREATE_LEAD`/`UPDATE_LEAD_STAGE`/`ADD_TAG` actions on the agent's final structured reply (see ADR-0005), never live tool calls mid-loop. `LeadStageChanged`-style events for the Automations context are not emitted yet - deferred until Phase 5 exists to consume them.
+Owns leads, pipelines, activities, tasks, tags (`ContactsModule` ended up living here too - Phase 2 designed it under Messaging but never implemented it, so Phase 4 added it since CRM needed contact read access first). AI tool calls mutate CRM only through the declarative `CREATE_LEAD`/`UPDATE_LEAD_STAGE`/`ADD_TAG` actions on the agent's final structured reply (see ADR-0005), never live tool calls mid-loop. `lead.created`/`lead.stage_changed` outbox events (the `LeadStageChanged`-style events referenced below) are emitted by `LeadsService` and consumed by the Automations context as of Phase 5.
 
 - `ContactsModule`, `PipelinesModule`, `LeadsModule`, `TasksModule`, `TagsModule`
 
-## Automations & Follow-ups (Phase 5 — designed, not implemented)
+## Automations & Follow-ups (Phase 5 — implemented)
 
-Owns the event-driven automation engine and the follow-up scheduler. Subscribes to domain events from Messaging/CRM/Content; never mutates their tables directly — it calls their service interfaces or enqueues jobs that do.
+Owns the event-driven automation engine and the durable follow-up scheduler. `Automation` subscribes to CRM domain events (`lead.created`, `lead.stage_changed`) via the existing transactional outbox rather than a new event bus; `FollowUp` is time-driven (a `scheduledFor` row polled by `FollowUpDispatcherService`), not event-driven. Neither mutates Messaging/CRM tables directly - `apps/worker-automations` does its own tenant-scoped queries and reuses the exact same action shapes (`CREATE_FOLLOW_UP`, `CREATE_TASK`, `ADD_TAG`) already used elsewhere.
 
 - `AutomationsModule`, `FollowUpsModule`
 

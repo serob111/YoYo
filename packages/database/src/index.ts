@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 export * from "@prisma/client";
 export * from "./crm-helpers";
+export * from "./scheduling-helpers";
 
 let prisma: PrismaClient | undefined;
 

@@ -2,10 +2,12 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nest
 import type { Redis } from "ioredis";
 import {
   createAiResponsesQueue,
+  createAutomationsQueue,
   createKnowledgeEmbeddingsQueue,
   createOutboundMessagesQueue,
   createWebhookEventsQueue,
   enqueueAiResponse,
+  enqueueAutomationTrigger,
   enqueueKnowledgeEmbedding,
   enqueueOutboundMessage,
   enqueueWebhookEvent
@@ -19,6 +21,7 @@ interface OutboxRow {
   aggregateType: string;
   aggregateId: string;
   eventType: OutboxEventType;
+  organizationId: string | null;
   payload: Record<string, unknown>;
 }
 
@@ -40,6 +43,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly outboundMessagesQueue;
   private readonly aiResponsesQueue;
   private readonly knowledgeEmbeddingsQueue;
+  private readonly automationsQueue;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -49,6 +53,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     this.outboundMessagesQueue = createOutboundMessagesQueue(redis);
     this.aiResponsesQueue = createAiResponsesQueue(redis);
     this.knowledgeEmbeddingsQueue = createKnowledgeEmbeddingsQueue(redis);
+    this.automationsQueue = createAutomationsQueue(redis);
   }
 
   onModuleInit(): void {
@@ -61,6 +66,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     await this.outboundMessagesQueue.close();
     await this.aiResponsesQueue.close();
     await this.knowledgeEmbeddingsQueue.close();
+    await this.automationsQueue.close();
   }
 
   /** Test-only: stop the automatic interval so tests can drive `tick()` deterministically. */
@@ -82,7 +88,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private async dispatchOneBatch(): Promise<number> {
     return this.prisma.client.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<OutboxRow[]>`
-        SELECT id, "aggregateType" as "aggregateType", "aggregateId" as "aggregateId", "eventType" as "eventType", payload
+        SELECT id, "aggregateType" as "aggregateType", "aggregateId" as "aggregateId", "eventType" as "eventType", "organizationId" as "organizationId", payload
         FROM outbox_events
         WHERE status = 'PENDING'
         ORDER BY "createdAt"
@@ -121,6 +127,18 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
         return;
       case "knowledge_chunk.embedding_pending":
         await enqueueKnowledgeEmbedding(this.knowledgeEmbeddingsQueue, { knowledgeChunkId: row.aggregateId, requestId });
+        return;
+      case "lead.created":
+      case "lead.stage_changed":
+        if (!row.organizationId) throw new Error(`Outbox row ${row.id} of type ${row.eventType} is missing organizationId`);
+        await enqueueAutomationTrigger(this.automationsQueue, {
+          outboxEventId: row.id,
+          eventType: row.eventType,
+          organizationId: row.organizationId,
+          leadId: row.aggregateId,
+          payload: row.payload,
+          requestId
+        });
         return;
       default: {
         const exhaustiveCheck: never = row.eventType;

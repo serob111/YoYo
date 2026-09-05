@@ -16,3 +16,4 @@ packages/database/generated/
 packages/database/prisma/migrations/**/migration.sql.bak
 .vscode/*
 !.vscode/extensions.json
+.claude/

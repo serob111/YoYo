@@ -7,3 +7,4 @@ export * from "./conversations";
 export * from "./messages";
 export * from "./ai";
 export * from "./crm";
+export * from "./automations";

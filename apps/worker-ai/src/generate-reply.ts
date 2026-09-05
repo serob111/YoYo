@@ -1,4 +1,4 @@
-import { getOrCreateDefaultPipeline, type Prisma, type PrismaClient } from "@yoyo/database";
+import { getOrCreateDefaultPipeline, resolveNextSendTime, type Prisma, type PrismaClient } from "@yoyo/database";
 import { calculateCostCents, runSalesAgent, type AiAction, type AIMessage, type AIProvider, type EmbeddingProvider, type ToolHandlers } from "@yoyo/ai";
 
 export type GenerateAiReplyResult = "sent" | "skipped" | "not_found" | "cost_capped" | "failed";
@@ -13,7 +13,7 @@ function buildSystemPrompt(businessName: string, description: string | null, ton
     `The business's timezone is ${timezone}.`,
     "Use the available tools to look up real product, service, and knowledge-base information before answering - never invent prices, availability, or policies.",
     "Reply in the same language the customer is writing in.",
-    "If the customer shows buying intent, check getContactLeads first to avoid creating a duplicate lead, then propose CREATE_LEAD if none fits. Use UPDATE_LEAD_STAGE to reflect real progress. Only tag via ADD_TAG using an id from getTags - never invent a new tag name.",
+    "If the customer shows buying intent, check getContactLeads first to avoid creating a duplicate lead, then propose CREATE_LEAD if none fits. Use UPDATE_LEAD_STAGE to reflect real progress. Only tag via ADD_TAG using an id from getTags - never invent a new tag name. If it would help to check back later (e.g. the customer needs time to decide, or you promised to follow up), propose SCHEDULE_FOLLOW_UP with a delay in minutes and the message to send then - you can omit leadId if you just created the lead in this same reply.",
     "You must end your turn by calling submit_reply exactly once with your final answer - do not call it more than once, and do not answer in plain text."
   ]
     .filter((line): line is string => line !== null)
@@ -103,7 +103,13 @@ export function buildToolHandlers(
  */
 async function applyAiActions(
   tx: Prisma.TransactionClient,
-  context: { organizationId: string; conversationId: string; contactId: string },
+  context: {
+    organizationId: string;
+    conversationId: string;
+    contactId: string;
+    timezone: string;
+    businessHours: unknown;
+  },
   actions: AiAction[]
 ): Promise<{ requestedHumanTakeover: boolean }> {
   let requestedHumanTakeover = false;
@@ -131,6 +137,18 @@ async function applyAiActions(
         await tx.activity.create({
           data: { organizationId: context.organizationId, leadId: lead.id, type: "SYSTEM", content: `Lead created by AI: ${action.title}` }
         });
+        // Inlined rather than importing apps/api's OutboxService, matching how
+        // message.outbound_pending is already inlined below - workers don't
+        // import from other apps.
+        await tx.outboxEvent.create({
+          data: {
+            organizationId: context.organizationId,
+            aggregateType: "Lead",
+            aggregateId: lead.id,
+            eventType: "lead.created",
+            payload: { requestId: "worker-ai" }
+          }
+        });
         break;
       }
 
@@ -139,12 +157,29 @@ async function applyAiActions(
         if (!lead || lead.organizationId !== context.organizationId) break;
         const stage = await tx.pipelineStage.findUnique({ where: { id: action.stageId } });
         if (!stage || stage.pipelineId !== lead.pipelineId) break;
+        const isClosing = stage.isWon || stage.isLost;
         await tx.lead.update({
           where: { id: lead.id },
-          data: { stageId: stage.id, closedAt: stage.isWon || stage.isLost ? new Date() : null }
+          data: { stageId: stage.id, closedAt: isClosing ? new Date() : null }
         });
         await tx.activity.create({
           data: { organizationId: context.organizationId, leadId: lead.id, type: "STAGE_CHANGE", content: `Stage changed to ${stage.name} by AI` }
+        });
+        // Don't follow up on a deal the AI just closed.
+        if (isClosing) {
+          await tx.followUp.updateMany({
+            where: { leadId: lead.id, status: "PENDING" },
+            data: { status: "CANCELLED", cancelledAt: new Date() }
+          });
+        }
+        await tx.outboxEvent.create({
+          data: {
+            organizationId: context.organizationId,
+            aggregateType: "Lead",
+            aggregateId: lead.id,
+            eventType: "lead.stage_changed",
+            payload: { requestId: "worker-ai", fromStageId: lead.stageId, toStageId: stage.id }
+          }
         });
         break;
       }
@@ -158,6 +193,27 @@ async function applyAiActions(
           where: { leadId_tagId: { leadId: lead.id, tagId: tag.id } },
           create: { leadId: lead.id, tagId: tag.id },
           update: {}
+        });
+        break;
+      }
+
+      case "SCHEDULE_FOLLOW_UP": {
+        const lead = action.leadId
+          ? await tx.lead.findUnique({ where: { id: action.leadId } })
+          : await tx.lead.findFirst({ where: { organizationId: context.organizationId, contactId: context.contactId }, orderBy: { createdAt: "desc" } });
+        if (!lead || lead.organizationId !== context.organizationId) break;
+
+        const requestedAt = new Date(Date.now() + action.delayMinutes * 60_000);
+        const scheduledFor = resolveNextSendTime(requestedAt, context.timezone, context.businessHours);
+        await tx.followUp.create({
+          data: {
+            organizationId: context.organizationId,
+            leadId: lead.id,
+            actionType: "SEND_MESSAGE",
+            actionConfig: { text: action.message },
+            scheduledFor
+            // createdByUserId left null - AI-originated.
+          }
         });
         break;
       }
@@ -309,7 +365,13 @@ export async function generateAiReply(
 
     const { requestedHumanTakeover } = await applyAiActions(
       tx,
-      { organizationId, conversationId: conversation.id, contactId: conversation.contactId },
+      {
+        organizationId,
+        conversationId: conversation.id,
+        contactId: conversation.contactId,
+        timezone: businessProfile?.timezone ?? "UTC",
+        businessHours: businessProfile?.businessHours ?? null
+      },
       reply.actions
     );
 

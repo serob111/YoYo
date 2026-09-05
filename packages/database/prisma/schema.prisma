@@ -61,6 +61,7 @@ model User {
   assignedLeads        Lead[]
   assignedTasks        Task[]
   loggedActivities     Activity[]
+  createdFollowUps     FollowUp[]
 
   @@map("users")
 }
@@ -124,6 +125,9 @@ model Organization {
   activities        Activity[]
   tasks             Task[]
   tags              Tag[]
+  followUps         FollowUp[]
+  automations       Automation[]
+  automationExecutions AutomationExecution[]
 
   @@map("organizations")
 }
@@ -613,6 +617,8 @@ model Lead {
   activities Activity[]
   tasks      Task[]
   tags       LeadTag[]
+  followUps  FollowUp[]
+  automationExecutions AutomationExecution[]
 
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([contactId])
@@ -685,4 +691,129 @@ model LeadTag {
 
   @@id([leadId, tagId])
   @@map("lead_tags")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Follow-ups & Automations. See docs/architecture/bounded-contexts.md
+// and docs/architecture/queue-topology.md for the design this implements.
+//
+// Two structurally different mechanisms:
+// - FollowUp is TIME-driven ("fire at time X") - scheduledFor is the durable
+//   source of truth, polled by FollowUpDispatcherService (apps/api/src/common).
+// - Automation is EVENT-driven ("when X happens, do Y") - reuses the existing
+//   transactional outbox (OutboxEvent) unchanged; see lead.created/
+//   lead.stage_changed in apps/api/src/common/outbox.service.ts.
+//
+// No-infinite-loop invariant (by construction, not runtime cycle-detection):
+// none of AutomationActionType's actions (CREATE_FOLLOW_UP, CREATE_TASK,
+// ADD_TAG) produce a lead.created or lead.stage_changed event, so no
+// Automation in this phase's initial trigger/action set can ever re-trigger
+// itself or another Automation. Adding a new trigger/action pair later must
+// re-check this invariant explicitly.
+// ---------------------------------------------------------------------------
+
+enum FollowUpActionType {
+  SEND_MESSAGE
+  CREATE_TASK
+}
+
+enum FollowUpStatus {
+  PENDING
+  // Atomic claim state (PENDING -> SENDING via updateMany) so two concurrent
+  // workers processing the same due follow-up can't both execute its action -
+  // mirrors Message's PENDING -> SENDING claim in worker-messaging's send.ts.
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+model FollowUp {
+  id              String             @id @default(uuid())
+  organizationId  String
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId          String
+  lead            Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actionType      FollowUpActionType
+  // {text} for SEND_MESSAGE, {title, description?} for CREATE_TASK - validated
+  // by packages/contracts's discriminated union, not enforced at the DB layer.
+  actionConfig    Json
+  // Already business-hours-adjusted at creation time (see
+  // resolveNextSendTime in @yoyo/database) - never re-adjusted at dispatch.
+  scheduledFor    DateTime
+  status          FollowUpStatus     @default(PENDING)
+  // Null = created by an Automation or the AI's SCHEDULE_FOLLOW_UP action.
+  createdByUserId String?
+  createdByUser   User?              @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  cancelledAt     DateTime?
+  executedAt      DateTime?
+  errorMessage    String?
+  createdAt       DateTime           @default(now())
+
+  @@index([status, scheduledFor])
+  @@index([leadId])
+  @@map("follow_ups")
+}
+
+enum AutomationTriggerType {
+  LEAD_CREATED
+  LEAD_STAGE_CHANGED
+}
+
+enum AutomationActionType {
+  CREATE_FOLLOW_UP
+  CREATE_TASK
+  ADD_TAG
+}
+
+model Automation {
+  id             String                @id @default(uuid())
+  organizationId String
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  triggerType    AutomationTriggerType
+  // e.g. {toStageId} to scope LEAD_STAGE_CHANGED to one destination stage.
+  triggerConfig  Json?
+  actionType     AutomationActionType
+  // Shape depends on actionType - validated by packages/contracts.
+  actionConfig   Json
+  enabled        Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  executions AutomationExecution[]
+
+  @@index([organizationId, triggerType, enabled])
+  @@map("automations")
+}
+
+enum AutomationExecutionStatus {
+  // Set at claim time (the row's mere existence is the idempotency claim -
+  // see the model comment below), then updated to COMPLETED/FAILED - mirrors
+  // AiResponse's PENDING -> COMPLETED/FAILED lifecycle exactly.
+  PENDING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+// One row per (automation, triggering event) - triggerEventId is the causing
+// OutboxEvent's id. @@unique below is the idempotency claim: a duplicate
+// firing attempt (e.g. a retried BullMQ job) hits P2002 and is skipped,
+// mirroring AiResponse.triggerMessageId's unique-constraint-as-claim pattern.
+model AutomationExecution {
+  id             String                    @id @default(uuid())
+  automationId   String
+  automation     Automation                @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String?
+  lead           Lead?                     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  triggerEventId String
+  status         AutomationExecutionStatus
+  errorMessage   String?
+  createdAt      DateTime                  @default(now())
+
+  @@unique([automationId, triggerEventId])
+  @@map("automation_executions")
 }

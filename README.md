@@ -1,10 +1,10 @@
 # Yoyo — AI Sales & Social Media Employee
 
-Multi-tenant SaaS platform. See `docs/architecture/` for the system design and `docs/adr/` for key decisions. This repository currently implements **Phase 1 (Foundation)**, **Phase 2 (Instagram messaging)**, **Phase 3 (AI sales)**, and **Phase 4 (CRM)** — see `docs/architecture/mvp-scope.md` for what each phase does and doesn't include.
+Multi-tenant SaaS platform. See `docs/architecture/` for the system design and `docs/adr/` for key decisions. This repository currently implements **Phase 1 (Foundation)**, **Phase 2 (Instagram messaging)**, **Phase 3 (AI sales)**, **Phase 4 (CRM)**, and **Phase 5 (Follow-ups & automations)** — see `docs/architecture/mvp-scope.md` for what each phase does and doesn't include.
 
 ## Stack
 
-pnpm workspaces + Turborepo monorepo. Next.js (`apps/web`), NestJS (`apps/api`), and four BullMQ workers (`apps/worker-email`, `apps/worker-webhooks`, `apps/worker-messaging`, `apps/worker-ai`), PostgreSQL + pgvector via Prisma (`packages/database`), Redis, and MinIO for local S3-compatible storage. The AI provider abstraction (`packages/ai`) wraps Anthropic (chat) and Voyage AI (embeddings) — only `apps/worker-ai` holds those credentials.
+pnpm workspaces + Turborepo monorepo. Next.js (`apps/web`), NestJS (`apps/api`), and five BullMQ workers (`apps/worker-email`, `apps/worker-webhooks`, `apps/worker-messaging`, `apps/worker-ai`, `apps/worker-automations`), PostgreSQL + pgvector via Prisma (`packages/database`), Redis, and MinIO for local S3-compatible storage. The AI provider abstraction (`packages/ai`) wraps Anthropic (chat) and Voyage AI (embeddings) — only `apps/worker-ai` holds those credentials. `apps/worker-automations` fires event-driven `Automation` rules and executes durably-scheduled `FollowUp`s, both feeding back into the existing outbound-message pipeline unchanged.
 
 ## Local setup
 
@@ -12,7 +12,7 @@ pnpm workspaces + Turborepo monorepo. Next.js (`apps/web`), NestJS (`apps/api`),
 2. `docker compose up -d` — starts Postgres (with the `vector` extension available), Redis, MinIO.
 3. `pnpm install`
 4. `pnpm --filter @yoyo/database db:generate && pnpm --filter @yoyo/database db:migrate`
-5. `pnpm dev` — runs `apps/web`, `apps/api`, and all four workers together via Turborepo (`worker-ai` will exit immediately if its API keys are unset — run `pnpm --filter @yoyo/worker-ai dev` separately once they're configured).
+5. `pnpm dev` — runs `apps/web`, `apps/api`, and all five workers together via Turborepo (`worker-ai` will exit immediately if its API keys are unset — run `pnpm --filter @yoyo/worker-ai dev` separately once they're configured).
 
 Web: http://localhost:3000. API: http://localhost:4000. MinIO console: http://localhost:9001.
 

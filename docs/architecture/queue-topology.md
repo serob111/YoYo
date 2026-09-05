@@ -4,23 +4,24 @@
 
 Phase 1's async workload is one email queue. Even the full target workload (webhooks, messaging, AI, publishing, automations) is job-shaped — "do this discrete unit of work, retry with backoff on failure, dead-letter after N attempts" — not a log-streaming/event-sourcing workload. BullMQ on Redis (already required for caching/rate-limiting/sessions-adjacent needs) covers this without operating a second distributed system. Kafka becomes worth its operational cost only if a measured requirement shows up (e.g. needing multiple independent consumer groups replaying the same event stream) — see `docs/adr/0003-bullmq-for-queues.md`.
 
-## Phase 1 queues (implemented)
+## Implemented queues (Phases 1-5)
 
 | Queue | Producer | Consumer | Purpose |
 |---|---|---|---|
 | `email` | API (`NotificationsModule`) | `worker-email` | Send magic-link, invite, and password-reset emails via `EmailProvider` |
+| `webhook-events` | API (`WebhooksModule`, via outbox) | `worker-webhooks` | Normalize a stored `ProviderWebhookEvent` into contact/conversation/message rows |
+| `outbound-messages` | API (`MessagesModule`) / `worker-ai` / `worker-automations` (all via outbox) | `worker-messaging` | Send a `PENDING` outbound `Message` through the real provider adapter |
+| `ai-responses` | API (`WebhooksModule`'s normalize step, via outbox) | `worker-ai` | Run the sales agent for one inbound message |
+| `knowledge-embeddings` | API (`KnowledgeModule`, via outbox) | `worker-ai` | Compute a knowledge chunk's embedding |
+| `automations` | API (`LeadsModule`, via outbox) / `worker-ai` (via inlined outbox row) | `worker-automations` | Fire matching `Automation` rows for a `lead.created`/`lead.stage_changed` event |
+| `follow-ups` | API (`FollowUpDispatcherService`, polling `FollowUp.scheduledFor`) | `worker-automations` | Execute one due `FollowUp`'s action |
+
+(`inbound-messages` and `ai`/`knowledge-ingestion` from the original target names were superseded by `webhook-events`→`ai-responses` and `knowledge-embeddings` respectively once actually implemented - renamed here to match reality.)
 
 ## Target queue map (later phases, not implemented yet)
 
 | Queue | Consumer worker | Introduced in |
 |---|---|---|
-| `webhook-events` | `worker-webhooks` | Phase 2 |
-| `inbound-messages` | `worker-messaging` | Phase 2 |
-| `outbound-messages` | `worker-messaging` | Phase 2 |
-| `ai` | `worker-ai` | Phase 3 |
-| `knowledge-ingestion` | `worker-ai` | Phase 3 |
-| `follow-ups` | `worker-automations` | Phase 5 |
-| `automations` | `worker-automations` | Phase 5 |
 | `publishing` | `worker-publishing` | Phase 6 |
 | `media` | `worker-media` | Phase 6 |
 | `analytics` | `worker-automations` (or dedicated later if volume justifies) | Phase 6+ |

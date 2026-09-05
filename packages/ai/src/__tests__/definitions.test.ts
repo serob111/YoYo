@@ -45,6 +45,34 @@ describe("AiReplySchema", () => {
     });
     expect(parsed.actions).toHaveLength(2);
   });
+
+  it("accepts a SCHEDULE_FOLLOW_UP action with and without an explicit leadId", () => {
+    const withLead = AiReplySchema.safeParse({
+      reply: "I'll follow up with you in 2 days!",
+      intent: "other",
+      needsHuman: false,
+      actions: [{ type: "SCHEDULE_FOLLOW_UP", leadId: "lead-1", delayMinutes: 2880, message: "Just checking in!" }]
+    });
+    expect(withLead.success).toBe(true);
+
+    const withoutLead = AiReplySchema.safeParse({
+      reply: "I'll follow up with you in 2 days!",
+      intent: "other",
+      needsHuman: false,
+      actions: [{ type: "SCHEDULE_FOLLOW_UP", delayMinutes: 2880, message: "Just checking in!" }]
+    });
+    expect(withoutLead.success).toBe(true);
+  });
+
+  it("rejects a SCHEDULE_FOLLOW_UP action beyond the 30-day cap", () => {
+    const result = AiReplySchema.safeParse({
+      reply: "hi",
+      intent: "other",
+      needsHuman: false,
+      actions: [{ type: "SCHEDULE_FOLLOW_UP", delayMinutes: 999_999, message: "too far out" }]
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("ALL_TOOLS", () => {

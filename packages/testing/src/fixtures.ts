@@ -1,4 +1,20 @@
-import type { BusinessProfile, Contact, ConnectedAccount, ConnectedAccountStatus, Lead, OrganizationRole, PrismaClient, Provider, Tag } from "@yoyo/database";
+import type {
+  Automation,
+  AutomationActionType,
+  AutomationTriggerType,
+  BusinessProfile,
+  Contact,
+  ConnectedAccount,
+  ConnectedAccountStatus,
+  FollowUp,
+  FollowUpActionType,
+  Lead,
+  OrganizationRole,
+  Prisma,
+  PrismaClient,
+  Provider,
+  Tag
+} from "@yoyo/database";
 import { randomUUID } from "node:crypto";
 
 export async function createTestUser(
@@ -104,6 +120,52 @@ export async function createTestLead(
       pipelineId: params.pipelineId,
       stageId: params.stageId,
       title: params.title ?? "Test Lead"
+    }
+  });
+}
+
+export async function createTestFollowUp(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    leadId: string;
+    actionType?: FollowUpActionType;
+    actionConfig?: Prisma.InputJsonValue;
+    scheduledFor?: Date;
+  }
+): Promise<FollowUp> {
+  return prisma.followUp.create({
+    data: {
+      organizationId: params.organizationId,
+      leadId: params.leadId,
+      actionType: params.actionType ?? "SEND_MESSAGE",
+      actionConfig: params.actionConfig ?? { text: "Test follow-up message" },
+      scheduledFor: params.scheduledFor ?? new Date()
+    }
+  });
+}
+
+export async function createTestAutomation(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    triggerType?: AutomationTriggerType;
+    triggerConfig?: Prisma.InputJsonValue | null;
+    actionType?: AutomationActionType;
+    actionConfig?: Prisma.InputJsonValue;
+    enabled?: boolean;
+    name?: string;
+  }
+): Promise<Automation> {
+  return prisma.automation.create({
+    data: {
+      organizationId: params.organizationId,
+      name: params.name ?? `Test Automation ${randomUUID().slice(0, 8)}`,
+      triggerType: params.triggerType ?? "LEAD_CREATED",
+      triggerConfig: params.triggerConfig ?? undefined,
+      actionType: params.actionType ?? "CREATE_TASK",
+      actionConfig: params.actionConfig ?? { title: "Test automation task" },
+      enabled: params.enabled ?? true
     }
   });
 }
