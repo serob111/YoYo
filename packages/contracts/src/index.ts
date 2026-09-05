@@ -5,3 +5,4 @@ export * from "./errors";
 export * from "./integrations";
 export * from "./conversations";
 export * from "./messages";
+export * from "./ai";

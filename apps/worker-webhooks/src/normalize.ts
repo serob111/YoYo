@@ -58,13 +58,24 @@ export async function normalizeWebhookEvent(prisma: PrismaClient, providerWebhoo
       });
     }
 
+    // New conversations only start AI-driven if the org has turned AI on -
+    // otherwise they default to HUMAN_ACTIVE (the Conversation model's own
+    // default), matching Phase 3's "AI is opt-in per org" design.
+    const businessProfile = await tx.businessProfile.findUnique({ where: { organizationId } });
     const conversation = await tx.conversation.upsert({
       where: { connectedAccountId_contactId: { connectedAccountId, contactId: identity.contactId } },
-      create: { organizationId, connectedAccountId, contactId: identity.contactId, provider: "INSTAGRAM", lastMessageAt: normalized.occurredAt },
+      create: {
+        organizationId,
+        connectedAccountId,
+        contactId: identity.contactId,
+        provider: "INSTAGRAM",
+        lastMessageAt: normalized.occurredAt,
+        automationState: businessProfile?.aiEnabled ? "AI_ACTIVE" : "HUMAN_ACTIVE"
+      },
       update: { lastMessageAt: normalized.occurredAt }
     });
 
-    await tx.message.create({
+    const message = await tx.message.create({
       data: {
         organizationId,
         conversationId: conversation.id,
@@ -81,6 +92,18 @@ export async function normalizeWebhookEvent(prisma: PrismaClient, providerWebhoo
         status: "DELIVERED",
         providerTimestamp: normalized.occurredAt,
         metadata: normalized.attachmentUrls.length > 0 ? { attachmentUrls: normalized.attachmentUrls } : {}
+      }
+    });
+
+    // Inlined rather than importing apps/api's OutboxService - it's a single
+    // Prisma insert and workers don't import from other apps. See ADR-0004.
+    await tx.outboxEvent.create({
+      data: {
+        organizationId,
+        aggregateType: "Message",
+        aggregateId: message.id,
+        eventType: "message.inbound_received",
+        payload: { conversationId: conversation.id, requestId: "webhook-normalize" }
       }
     });
 

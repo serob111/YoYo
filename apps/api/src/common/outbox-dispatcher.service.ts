@@ -1,8 +1,12 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import type { Redis } from "ioredis";
 import {
+  createAiResponsesQueue,
+  createKnowledgeEmbeddingsQueue,
   createOutboundMessagesQueue,
   createWebhookEventsQueue,
+  enqueueAiResponse,
+  enqueueKnowledgeEmbedding,
   enqueueOutboundMessage,
   enqueueWebhookEvent
 } from "@yoyo/queue";
@@ -34,6 +38,8 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private ticking = false;
   private readonly webhookEventsQueue;
   private readonly outboundMessagesQueue;
+  private readonly aiResponsesQueue;
+  private readonly knowledgeEmbeddingsQueue;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -41,6 +47,8 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.webhookEventsQueue = createWebhookEventsQueue(redis);
     this.outboundMessagesQueue = createOutboundMessagesQueue(redis);
+    this.aiResponsesQueue = createAiResponsesQueue(redis);
+    this.knowledgeEmbeddingsQueue = createKnowledgeEmbeddingsQueue(redis);
   }
 
   onModuleInit(): void {
@@ -51,6 +59,8 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     this.stopPolling();
     await this.webhookEventsQueue.close();
     await this.outboundMessagesQueue.close();
+    await this.aiResponsesQueue.close();
+    await this.knowledgeEmbeddingsQueue.close();
   }
 
   /** Test-only: stop the automatic interval so tests can drive `tick()` deterministically. */
@@ -105,6 +115,12 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
         return;
       case "message.outbound_pending":
         await enqueueOutboundMessage(this.outboundMessagesQueue, { messageId: row.aggregateId, requestId });
+        return;
+      case "message.inbound_received":
+        await enqueueAiResponse(this.aiResponsesQueue, { triggerMessageId: row.aggregateId, requestId });
+        return;
+      case "knowledge_chunk.embedding_pending":
+        await enqueueKnowledgeEmbedding(this.knowledgeEmbeddingsQueue, { knowledgeChunkId: row.aggregateId, requestId });
         return;
       default: {
         const exhaustiveCheck: never = row.eventType;

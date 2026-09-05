@@ -1,4 +1,4 @@
-import type { ConnectedAccount, ConnectedAccountStatus, OrganizationRole, PrismaClient, Provider } from "@yoyo/database";
+import type { BusinessProfile, ConnectedAccount, ConnectedAccountStatus, OrganizationRole, PrismaClient, Provider } from "@yoyo/database";
 import { randomUUID } from "node:crypto";
 
 export async function createTestUser(
@@ -61,6 +61,22 @@ export async function createTestConnectedAccount(
       encryptedAccessToken: params.encryptedAccessToken,
       status: params.status ?? "CONNECTED",
       capabilities: { oauth: true, inboundMessaging: true, outboundMessaging: true, webhooks: true }
+    }
+  });
+}
+
+export async function createTestBusinessProfile(
+  prisma: PrismaClient,
+  params: { organizationId: string; aiEnabled?: boolean; monthlyCostCapCents?: number | null; defaultModel?: string | null }
+): Promise<BusinessProfile> {
+  return prisma.businessProfile.create({
+    data: {
+      organizationId: params.organizationId,
+      businessName: "Test Bakery",
+      timezone: "UTC",
+      aiEnabled: params.aiEnabled ?? true,
+      monthlyCostCapCents: params.monthlyCostCapCents ?? null,
+      defaultModel: params.defaultModel ?? null
     }
   });
 }

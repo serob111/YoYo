@@ -1,7 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "@yoyo/database";
 
-export type OutboxEventType = "webhook.received" | "message.outbound_pending";
+export type OutboxEventType =
+  | "webhook.received"
+  | "message.outbound_pending"
+  | "message.inbound_received"
+  | "knowledge_chunk.embedding_pending";
 
 export interface RecordOutboxEventInput {
   organizationId?: string;

@@ -108,6 +108,22 @@ export function loadMessagingWorkerEnv(source: NodeJS.ProcessEnv = process.env):
   return loadWith(messagingWorkerEnvSchema, source);
 }
 
+// worker-ai: the only app/worker holding AI provider credentials. apps/api
+// never calls Claude/Voyage directly (see docs/architecture/overview.md's
+// "never call an external provider/LLM synchronously inside a request" rule).
+export const aiWorkerEnvSchema = coreWorkerEnvSchema.extend({
+  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
+  VOYAGE_API_KEY: z.string().min(1, "VOYAGE_API_KEY is required"),
+  // Org-level BusinessProfile.defaultModel overrides this; this is just the
+  // fallback so the model is never hardcoded into the provider class itself.
+  AI_DEFAULT_MODEL: z.string().default("claude-sonnet-5"),
+  AI_EMBEDDING_MODEL: z.string().default("voyage-4")
+});
+export type AiWorkerEnv = z.infer<typeof aiWorkerEnvSchema>;
+export function loadAiWorkerEnv(source: NodeJS.ProcessEnv = process.env): AiWorkerEnv {
+  return loadWith(aiWorkerEnvSchema, source);
+}
+
 export const webEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url()
 });

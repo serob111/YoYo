@@ -1,5 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Query, UseGuards } from "@nestjs/common";
-import { assignConversationSchema, type AssignConversationInput } from "@yoyo/contracts";
+import {
+  assignConversationSchema,
+  setConversationAutomationStateSchema,
+  type AssignConversationInput,
+  type SetConversationAutomationStateInput
+} from "@yoyo/contracts";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator";
 import { SessionGuard } from "../auth/session.guard";
 import { TenantContextGuard } from "../common/tenant-context.guard";
@@ -29,5 +34,17 @@ export class ConversationsController {
     @CurrentUser() user: CurrentUserPayload
   ) {
     return this.conversations.assign(organizationId, conversationId, body.assignedUserId, user.id);
+  }
+
+  @Patch(":conversationId/automation-state")
+  @RequireCapability("manageAI")
+  @UseGuards(CsrfGuard)
+  async setAutomationState(
+    @Param("organizationId") organizationId: string,
+    @Param("conversationId") conversationId: string,
+    @Body(new ZodValidationPipe(setConversationAutomationStateSchema)) body: SetConversationAutomationStateInput,
+    @CurrentUser() user: CurrentUserPayload
+  ) {
+    return this.conversations.setAutomationState(organizationId, conversationId, body.automationState, user.id);
   }
 }

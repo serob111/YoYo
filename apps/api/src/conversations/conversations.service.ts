@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { ConversationAutomationState } from "@yoyo/database";
 import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotFoundDomainError } from "../common/domain-errors";
@@ -43,6 +44,26 @@ export class ConversationsService {
       throw new NotFoundDomainError("Conversation");
     }
     return conversation;
+  }
+
+  async setAutomationState(organizationId: string, conversationId: string, automationState: ConversationAutomationState, actorId: string) {
+    const conversation = await this.getOrThrow(organizationId, conversationId);
+
+    return this.prisma.client.$transaction(async (tx) => {
+      const updated = await tx.conversation.update({ where: { id: conversationId }, data: { automationState } });
+      await this.audit.record(
+        {
+          organizationId,
+          actorId,
+          action: "conversation.automation_state_changed",
+          entityType: "Conversation",
+          entityId: conversationId,
+          metadata: { from: conversation.automationState, to: automationState }
+        },
+        tx
+      );
+      return updated;
+    });
   }
 
   async assign(organizationId: string, conversationId: string, assignedUserId: string | null, actorId: string) {

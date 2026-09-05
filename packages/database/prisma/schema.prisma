@@ -111,6 +111,11 @@ model Organization {
   contacts          Contact[]
   conversations     Conversation[]
   messages          Message[]
+  businessProfile   BusinessProfile?
+  products          Product[]
+  services          Service[]
+  knowledgeChunks   KnowledgeChunk[]
+  aiResponses       AiResponse[]
 
   @@map("organizations")
 }
@@ -331,6 +336,7 @@ model Conversation {
   updatedAt        DateTime                    @updatedAt
 
   messages Message[]
+  aiResponses AiResponse[]
 
   @@unique([connectedAccountId, contactId])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -358,6 +364,9 @@ model Message {
   metadata           Json              @default("{}")
   createdAt          DateTime          @default(now())
 
+  aiResponseAsTrigger AiResponse? @relation("AiResponseTrigger")
+  aiResponseAsResult  AiResponse? @relation("AiResponseResult")
+
   // Multiple pending outbound messages can share providerMessageId = NULL;
   // Postgres treats NULLs as distinct in unique constraints, so this is safe.
   @@unique([provider, providerMessageId])
@@ -380,4 +389,134 @@ model OutboxEvent {
 
   @@index([status, createdAt])
   @@map("outbox_events")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: AI sales. See docs/architecture/ (AI provider abstraction, RAG) and
+// docs/adr/ for the design this implements.
+// ---------------------------------------------------------------------------
+
+enum KnowledgeSourceType {
+  MANUAL
+  PRODUCT
+  SERVICE
+  FAQ
+}
+
+enum KnowledgeEmbeddingStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum AiResponseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model BusinessProfile {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  businessName   String
+  description    String?
+  // Free-text instructions steering the AI agent's tone/persona.
+  tone           String?
+  timezone       String       @default("UTC")
+  businessHours  Json?
+  // New conversations only start automationState = AI_ACTIVE when this is true;
+  // otherwise they default to HUMAN_ACTIVE (see Conversation.automationState).
+  aiEnabled      Boolean      @default(false)
+  // Nullable override of AI_DEFAULT_MODEL env var - keeps the model swappable
+  // per org without a code change.
+  defaultModel   String?
+  // Null = no cap. Enforced in apps/worker-ai against summed AiResponse.costCents.
+  monthlyCostCapCents Int?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("business_profiles")
+}
+
+model Product {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  priceCents     Int?
+  currency       String       @default("USD")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("products")
+}
+
+model Service {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  priceCents      Int?
+  currency        String       @default("USD")
+  durationMinutes Int?
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("services")
+}
+
+model KnowledgeChunk {
+  id              String                   @id @default(uuid())
+  organizationId  String
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceType      KnowledgeSourceType      @default(MANUAL)
+  sourceId        String?
+  content         String                   @db.Text
+  // Prisma has no native vector type; DDL for this column is hand-written in
+  // the migration SQL (see 0000..._phase3_ai_sales) and read/written via raw
+  // SQL ($queryRaw/$executeRaw), never through the normal query builder.
+  embedding       Unsupported("vector(1024)")?
+  embeddingStatus KnowledgeEmbeddingStatus @default(PENDING)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([organizationId])
+  @@map("knowledge_chunks")
+}
+
+// One row per AI turn. triggerMessageId's uniqueness is the atomic claim that
+// makes double-processing the same inbound message impossible (create() fails
+// with P2002 on a duplicate attempt) - mirrors the ContactIdentity/ConnectedAccount
+// unique-constraint-as-claim pattern from Phase 2. Also doubles as the usage/cost ledger.
+model AiResponse {
+  id               String           @id @default(uuid())
+  organizationId   String
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationId   String
+  conversation     Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  triggerMessageId String           @unique
+  triggerMessage   Message          @relation("AiResponseTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
+  resultMessageId  String?          @unique
+  resultMessage    Message?         @relation("AiResponseResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
+  status           AiResponseStatus @default(PENDING)
+  model            String?
+  inputTokens      Int?
+  outputTokens     Int?
+  cacheReadTokens  Int?
+  costCents        Int?
+  toolCallCount    Int              @default(0)
+  errorMessage     String?
+  createdAt        DateTime         @default(now())
+  completedAt      DateTime?
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("ai_responses")
 }

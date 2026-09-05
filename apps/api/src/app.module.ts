@@ -15,6 +15,10 @@ import { IntegrationsModule } from "./integrations/integrations.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { MessagesModule } from "./messages/messages.module";
+import { BusinessModule } from "./business/business.module";
+import { ProductsModule } from "./products/products.module";
+import { ServicesModule } from "./services/services.module";
+import { KnowledgeModule } from "./knowledge/knowledge.module";
 
 @Module({
   imports: [
@@ -30,7 +34,11 @@ import { MessagesModule } from "./messages/messages.module";
     IntegrationsModule,
     WebhooksModule,
     ConversationsModule,
-    MessagesModule
+    MessagesModule,
+    BusinessModule,
+    ProductsModule,
+    ServicesModule,
+    KnowledgeModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })
