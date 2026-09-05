@@ -56,3 +56,15 @@ export class RateLimitedError extends DomainError {
     super("RATE_LIMITED", "Too many attempts. Please try again later.", 429);
   }
 }
+
+export class ProviderNotConfiguredError extends DomainError {
+  constructor(provider: string) {
+    super("PROVIDER_NOT_CONFIGURED", `${provider} is not configured on this server yet.`, 503);
+  }
+}
+
+export class IntegrationDisconnectedError extends DomainError {
+  constructor(message = "This connected account is not currently able to send messages. Reconnect it first.") {
+    super("INTEGRATION_DISCONNECTED", message, 409);
+  }
+}

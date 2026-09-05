@@ -57,6 +57,7 @@ model User {
   organizationMembers  OrganizationMember[]      @relation("MemberUser")
   sentInvites          OrganizationMember[]      @relation("InvitedBy")
   auditLogEntries      AuditLog[]
+  assignedConversations Conversation[]
 
   @@map("users")
 }
@@ -105,6 +106,11 @@ model Organization {
 
   members    OrganizationMember[]
   auditLogs  AuditLog[]
+  connectedAccounts ConnectedAccount[]
+  webhookEvents     ProviderWebhookEvent[]
+  contacts          Contact[]
+  conversations     Conversation[]
+  messages          Message[]
 
   @@map("organizations")
 }
@@ -144,4 +150,234 @@ model AuditLog {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Instagram messaging. See docs/architecture/provider-abstraction.md
+// and docs/architecture/tenant-model.md for the design this implements.
+// ---------------------------------------------------------------------------
+
+enum Provider {
+  INSTAGRAM
+}
+
+enum ConnectedAccountStatus {
+  CONNECTED
+  ACTION_REQUIRED
+  TOKEN_EXPIRED
+  DISCONNECTED
+  ERROR
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageSenderType {
+  CUSTOMER
+  HUMAN
+  SYSTEM
+  AI
+  AUTOMATION
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STICKER
+  SYSTEM
+  UNKNOWN
+}
+
+enum MessageStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// Not yet driven by anything in Phase 2 (no AI/automation exists yet) - modeled
+// now so Phase 3 doesn't need a migration to wire AI into conversation state.
+enum ConversationAutomationState {
+  AI_ACTIVE
+  HUMAN_ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  DISPATCHED
+  FAILED
+}
+
+model ConnectedAccount {
+  id                  String                  @id @default(uuid())
+  organizationId      String
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider            Provider
+  externalAccountId   String
+  displayName         String?
+  username            String?
+  accountType         String?
+  avatarUrl           String?
+  status              ConnectedAccountStatus  @default(CONNECTED)
+  encryptedAccessToken String
+  tokenExpiresAt      DateTime?
+  grantedScopes       String[]                @default([])
+  capabilities        Json                    @default("{}")
+  providerMetadata    Json                    @default("{}")
+  lastSyncAt          DateTime?
+  lastWebhookAt       DateTime?
+  lastErrorCode       String?
+  lastErrorAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  webhookEvents  ProviderWebhookEvent[]
+  contactIdentities ContactIdentity[]
+  conversations  Conversation[]
+  messages       Message[]
+
+  // Global, not per-org: this is the trust boundary inbound webhooks resolve
+  // organizationId through. One external account can only ever belong to one org.
+  @@unique([provider, externalAccountId])
+  @@index([organizationId])
+  @@map("connected_accounts")
+}
+
+model ProviderWebhookEvent {
+  id                 String               @id @default(uuid())
+  provider           Provider
+  externalEventId    String
+  connectedAccountId String?
+  connectedAccount   ConnectedAccount?    @relation(fields: [connectedAccountId], references: [id], onDelete: SetNull)
+  organizationId     String?
+  organization       Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  payload            Json
+  status             WebhookEventStatus   @default(RECEIVED)
+  attemptCount       Int                  @default(0)
+  lastError          String?
+  receivedAt         DateTime             @default(now())
+  processedAt        DateTime?
+
+  // Prevents "same webhook delivered N times" from ever being processed twice.
+  @@unique([provider, externalEventId])
+  @@index([status, receivedAt])
+  @@map("provider_webhook_events")
+}
+
+model Contact {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  displayName    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  identities    ContactIdentity[]
+  conversations Conversation[]
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("contacts")
+}
+
+model ContactIdentity {
+  id                 String           @id @default(uuid())
+  contactId          String
+  contact            Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider           Provider
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  externalId         String
+  displayName        String?
+  profilePictureUrl  String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([provider, connectedAccountId, externalId])
+  @@map("contact_identities")
+}
+
+model Conversation {
+  id               String                      @id @default(uuid())
+  organizationId   String
+  organization     Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId String
+  connectedAccount ConnectedAccount             @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  contactId        String
+  contact          Contact                     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider         Provider
+  assignedUserId   String?
+  assignedUser     User?                       @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  automationState  ConversationAutomationState @default(HUMAN_ACTIVE)
+  lastMessageAt    DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  messages Message[]
+
+  @@unique([connectedAccountId, contactId])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model Message {
+  id                 String            @id @default(uuid())
+  organizationId     String
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationId     String
+  conversation       Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  connectedAccountId String
+  connectedAccount   ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  provider           Provider
+  providerMessageId  String?
+  direction          MessageDirection
+  senderType         MessageSenderType
+  senderUserId       String?
+  messageType        MessageType       @default(TEXT)
+  text               String?
+  status             MessageStatus     @default(PENDING)
+  replyToMessageId   String?
+  providerTimestamp  DateTime?
+  metadata           Json              @default("{}")
+  createdAt          DateTime          @default(now())
+
+  // Multiple pending outbound messages can share providerMessageId = NULL;
+  // Postgres treats NULLs as distinct in unique constraints, so this is safe.
+  @@unique([provider, providerMessageId])
+  @@index([organizationId, conversationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model OutboxEvent {
+  id            String            @id @default(uuid())
+  organizationId String?
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  status        OutboxEventStatus @default(PENDING)
+  attemptCount  Int               @default(0)
+  lastError     String?
+  createdAt     DateTime          @default(now())
+  dispatchedAt  DateTime?
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
 }

@@ -27,6 +27,8 @@ export function createEmailQueue(connection: Redis): Queue<EmailJobData> {
 export async function enqueueEmail(queue: Queue<EmailJobData>, data: EmailJobData): Promise<void> {
   // Idempotency: one logical email (e.g. a specific invite) maps to a deterministic jobId,
   // so re-enqueuing the same logical send is a no-op rather than a duplicate email.
-  const idempotencyKey = `${data.template}:${data.to}:${data.data.tokenId ?? data.requestId}`;
+  // BullMQ rejects custom job IDs containing ':' (reserved for its own key
+  // namespacing), so use '__' as the separator instead.
+  const idempotencyKey = `${data.template}__${data.to}__${data.data.tokenId ?? data.requestId}`;
   await queue.add(data.template, data, { ...DEFAULT_JOB_OPTIONS, jobId: idempotencyKey });
 }

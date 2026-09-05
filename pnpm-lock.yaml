@@ -35,9 +35,15 @@ importers:
       '@yoyo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@yoyo/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@yoyo/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@yoyo/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@yoyo/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -59,6 +65,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      express:
+        specifier: ^4.21.1
+        version: 4.22.1
       ioredis:
         specifier: ^5.4.1
         version: 5.11.1
@@ -105,6 +114,12 @@ importers:
       '@yoyo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      '@yoyo/worker-messaging':
+        specifier: workspace:*
+        version: link:../worker-messaging
+      '@yoyo/worker-webhooks':
+        specifier: workspace:*
+        version: link:../worker-webhooks
       eslint:
         specifier: ^8.57.1
         version: 8.57.1
@@ -228,6 +243,101 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  apps/worker-messaging:
+    dependencies:
+      '@yoyo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@yoyo/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@yoyo/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@yoyo/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
+      '@yoyo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@yoyo/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
+      bullmq:
+        specifier: ^5.15.0
+        version: 5.81.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.20.1
+      '@yoyo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@yoyo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      ts-node-dev:
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  apps/worker-webhooks:
+    dependencies:
+      '@yoyo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@yoyo/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@yoyo/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
+      '@yoyo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@yoyo/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
+      bullmq:
+        specifier: ^5.15.0
+        version: 5.81.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.20.1
+      '@yoyo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@yoyo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      ts-node-dev:
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/config:
     dependencies:
       zod:
@@ -260,6 +370,21 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  packages/crypto:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.20.1
+      '@yoyo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.1)(terser@5.51.2)
+
   packages/database:
     dependencies:
       '@prisma/client':
@@ -287,6 +412,21 @@ importers:
       eslint-config-prettier:
         specifier: ^9.1.0
         version: 9.1.2(eslint@8.57.1)
+
+  packages/integrations:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.20.1
+      '@yoyo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.1)(terser@5.51.2)
 
   packages/logger:
     dependencies:

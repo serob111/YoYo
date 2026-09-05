@@ -6,10 +6,12 @@ import { resetDatabase } from "@yoyo/testing";
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/common/prisma.service";
 import { REDIS_CONNECTION } from "../../src/common/env.tokens";
+import { configureRawBodyCapture } from "../../src/common/raw-body";
 
 export async function buildTestApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({ bodyParser: false });
+  configureRawBodyCapture(app);
   app.use(cookieParser());
   await app.init();
   return app;

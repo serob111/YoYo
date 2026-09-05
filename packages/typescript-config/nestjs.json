@@ -7,6 +7,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "outDir": "./dist",
-    "baseUrl": "./"
+    "baseUrl": "./",
+    // Applications, not libraries other TS projects import - no .d.ts consumer
+    // exists, so there's no reason to hit "portable declaration" (TS2742)
+    // checks that only matter for a package's public type surface.
+    "declaration": false
   }
 }

@@ -2,3 +2,6 @@ export * from "./auth";
 export * from "./organizations";
 export * from "./audit";
 export * from "./errors";
+export * from "./integrations";
+export * from "./conversations";
+export * from "./messages";

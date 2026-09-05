@@ -12,12 +12,17 @@ import cookieParser from "cookie-parser";
 import { loadApiEnv } from "@yoyo/config";
 import { createLogger } from "@yoyo/logger";
 import { AppModule } from "./app.module";
+import { configureRawBodyCapture } from "./common/raw-body";
 
 async function bootstrap() {
   const env = loadApiEnv();
   const logger = createLogger("api");
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // bodyParser: false so we can install json()/urlencoded() ourselves with a
+  // `verify` hook that stashes the raw bytes - required to check Meta's
+  // webhook HMAC signature, which is computed over the exact bytes sent.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
+  configureRawBodyCapture(app);
   app.use(cookieParser());
   app.enableCors({ origin: env.WEB_APP_URL, credentials: true });
   app.enableShutdownHooks();

@@ -33,7 +33,19 @@ export const apiEnvSchema = z.object({
   EMAIL_FROM_ADDRESS: z.string().email().default("no-reply@example.com"),
 
   RATE_LIMIT_AUTH_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
-  RATE_LIMIT_AUTH_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10)
+  RATE_LIMIT_AUTH_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
+
+  // --- Instagram / Meta (Phase 2) ---
+  // Optional: the app boots and every other feature works without these. Only
+  // the Instagram OAuth/webhook routes require them, and they fail with a clear
+  // config error at call time (not at boot) if unset. This keeps local dev
+  // possible before a Meta app exists, per docs/adr — see IntegrationsModule.
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  META_GRAPH_API_VERSION: z.string().default("v23.0"),
+  META_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  ENCRYPTION_KEY: z.string().min(1, "ENCRYPTION_KEY is required")
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -47,23 +59,53 @@ export function loadApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
   return result.data;
 }
 
-export const workerEnvSchema = apiEnvSchema.pick({
+const coreWorkerEnvSchema = apiEnvSchema.pick({
   NODE_ENV: true,
   DATABASE_URL: true,
-  REDIS_URL: true,
-  EMAIL_FROM_ADDRESS: true,
-  WEB_APP_URL: true
+  REDIS_URL: true
 });
 
-export type WorkerEnv = z.infer<typeof workerEnvSchema>;
-
-export function loadWorkerEnv(source: NodeJS.ProcessEnv = process.env): WorkerEnv {
-  const result = workerEnvSchema.safeParse(source);
+function loadWith<T extends z.ZodTypeAny>(schema: T, source: NodeJS.ProcessEnv): z.infer<T> {
+  const result = schema.safeParse(source);
   if (!result.success) {
-    const issues = result.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n");
+    const issues = result.error.issues.map((issue: z.ZodIssue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   return result.data;
+}
+
+export const workerEnvSchema = coreWorkerEnvSchema.extend({
+  EMAIL_FROM_ADDRESS: apiEnvSchema.shape.EMAIL_FROM_ADDRESS,
+  WEB_APP_URL: apiEnvSchema.shape.WEB_APP_URL
+});
+export type WorkerEnv = z.infer<typeof workerEnvSchema>;
+export function loadWorkerEnv(source: NodeJS.ProcessEnv = process.env): WorkerEnv {
+  return loadWith(workerEnvSchema, source);
+}
+
+// worker-webhooks: normalizes already-persisted ProviderWebhookEvent payloads.
+// No provider credentials needed - all data it needs is already in the payload.
+export const webhooksWorkerEnvSchema = coreWorkerEnvSchema;
+export type WebhooksWorkerEnv = z.infer<typeof webhooksWorkerEnvSchema>;
+export function loadWebhooksWorkerEnv(source: NodeJS.ProcessEnv = process.env): WebhooksWorkerEnv {
+  return loadWith(webhooksWorkerEnvSchema, source);
+}
+
+// worker-messaging: calls the real provider Send API, so it needs the token
+// decryption key and the Graph API version - but not the app secret (sends
+// authenticate with the per-account access token, not app-level credentials).
+export const messagingWorkerEnvSchema = coreWorkerEnvSchema.extend({
+  ENCRYPTION_KEY: apiEnvSchema.shape.ENCRYPTION_KEY,
+  META_GRAPH_API_VERSION: apiEnvSchema.shape.META_GRAPH_API_VERSION,
+  // Local-dev/manual-testing only: points the Graph API client at a throwaway
+  // local stub instead of the real graph.instagram.com, to exercise the real
+  // send/error-handling code path without live Meta credentials or a real
+  // customer messaging window. Never set in staging/production.
+  META_GRAPH_BASE_URL: z.string().url().optional()
+});
+export type MessagingWorkerEnv = z.infer<typeof messagingWorkerEnvSchema>;
+export function loadMessagingWorkerEnv(source: NodeJS.ProcessEnv = process.env): MessagingWorkerEnv {
+  return loadWith(messagingWorkerEnvSchema, source);
 }
 
 export const webEnvSchema = z.object({

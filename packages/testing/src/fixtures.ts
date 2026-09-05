@@ -1,4 +1,4 @@
-import type { OrganizationRole, PrismaClient } from "@yoyo/database";
+import type { ConnectedAccount, ConnectedAccountStatus, OrganizationRole, PrismaClient, Provider } from "@yoyo/database";
 import { randomUUID } from "node:crypto";
 
 export async function createTestUser(
@@ -39,6 +39,28 @@ export async function createTestMembership(
       role: params.role,
       status: params.status ?? "ACTIVE",
       joinedAt: (params.status ?? "ACTIVE") === "ACTIVE" ? new Date() : null
+    }
+  });
+}
+
+export async function createTestConnectedAccount(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    externalAccountId?: string;
+    encryptedAccessToken: string;
+    provider?: Provider;
+    status?: ConnectedAccountStatus;
+  }
+): Promise<ConnectedAccount> {
+  return prisma.connectedAccount.create({
+    data: {
+      organizationId: params.organizationId,
+      provider: params.provider ?? "INSTAGRAM",
+      externalAccountId: params.externalAccountId ?? `ig-${randomUUID()}`,
+      encryptedAccessToken: params.encryptedAccessToken,
+      status: params.status ?? "CONNECTED",
+      capabilities: { oauth: true, inboundMessaging: true, outboundMessaging: true, webhooks: true }
     }
   });
 }

@@ -1,7 +1,7 @@
 # ADR-0004: Transactional outbox pattern designed now, implemented starting Phase 2
 
 ## Status
-Accepted
+Accepted — **implemented in Phase 2** (`apps/api/src/common/outbox.service.ts`, `outbox-dispatcher.service.ts`). `WebhooksModule` and `MessagesModule` write `OutboxEvent` rows in the same transaction as the `ProviderWebhookEvent`/outbound `Message` row they announce. `OutboxDispatcherService` polls every 500ms with `SELECT ... FOR UPDATE SKIP LOCKED`, dispatches to the `webhook-events` or `outbound-messages` BullMQ queue, and marks rows `DISPATCHED` — proven safe under concurrent dispatcher instances (simulating horizontally-scaled API replicas) in `apps/api/test/outbox-dispatcher.e2e-spec.ts`.
 
 ## Context
 The brief requires that critical event publishing (e.g. "inbound message persisted" must reliably result in a queued AI/automation job) never lose work to the "DB commit succeeds, queue enqueue fails" failure mode. The standard fix is a transactional outbox: write the domain event to an `OutboxEvent` row in the same transaction as the business mutation, then a separate dispatcher reads outbox rows and enqueues them to BullMQ, so enqueue failure is retryable from durable state rather than silently lost.
