@@ -1,0 +1,16 @@
+{
+  "name": "@yoyo/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "base.js",
+  "exports": {
+    ".": "./base.js",
+    "./nestjs": "./nestjs.js",
+    "./nextjs": "./nextjs.js"
+  },
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "eslint-config-prettier": "^9.1.0"
+  }
+}

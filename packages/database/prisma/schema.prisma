@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETION_PENDING
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DELETION_PENDING
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+}
+
+// Single-use token table backing magic-link login, org invites, password reset,
+// and email verification. See docs/adr/0004 for why this is one table, not four.
+enum AuthTokenPurpose {
+  LOGIN
+  ORGANIZATION_INVITE
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  passwordHash    String?
+  name            String
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sessions             Session[]
+  magicLinkTokens      MagicLinkToken[]
+  organizationMembers  OrganizationMember[]      @relation("MemberUser")
+  sentInvites          OrganizationMember[]      @relation("InvitedBy")
+  auditLogEntries      AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  // SHA-256 of the opaque token stored in the session cookie. The raw token is
+  // never persisted, so a DB read/log leak alone can't be replayed as a live session.
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model MagicLinkToken {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String           @unique
+  purpose     AuthTokenPurpose
+  // For ORGANIZATION_INVITE tokens, the pending membership this token will activate.
+  organizationMemberId String? @unique
+  organizationMember    OrganizationMember? @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, purpose])
+  @@map("magic_link_tokens")
+}
+
+model Organization {
+  id        String             @id @default(uuid())
+  name      String
+  slug      String             @unique
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  members    OrganizationMember[]
+  auditLogs  AuditLog[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User         @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  role             OrganizationRole
+  status           MemberStatus @default(INVITED)
+  invitedByUserId  String?
+  invitedBy        User?        @relation("InvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  invitedAt        DateTime     @default(now())
+  joinedAt         DateTime?
+
+  inviteToken MagicLinkToken?
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, status])
+  @@map("organization_members")
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorId        String?
+  actor          User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json          @default("{}")
+  requestId      String
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

@@ -1,0 +1,30 @@
+name: yoyo-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_USER: yoyo
+      POSTGRES_PASSWORD: yoyo
+      POSTGRES_DB: yoyo_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yoyo -d yoyo_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: "no"
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

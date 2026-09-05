@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.log
+.env
+.env.*.local
+.DS_Store
+Thumbs.db
+apps/**/generated/
+packages/database/generated/
+packages/database/prisma/migrations/**/migration.sql.bak
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  NODE_ENV: test
+
+jobs:
+  lint-typecheck-unit-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @yoyo/database db:generate
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck
+
+      - name: Unit tests
+        run: pnpm turbo run test
+
+      - name: Build
+        run: pnpm turbo run build
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: yoyo
+          POSTGRES_PASSWORD: yoyo
+          POSTGRES_DB: yoyo_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U yoyo -d yoyo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://yoyo:yoyo@localhost:5433/yoyo_test
+      REDIS_URL: redis://localhost:6380
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @yoyo/database db:generate
+
+      - name: Apply migrations
+        run: pnpm --filter @yoyo/database db:migrate:deploy
+
+      - name: Integration tests (includes tenant-isolation suite)
+        run: pnpm --filter @yoyo/api test:integration
