@@ -35,6 +35,11 @@ export const apiEnvSchema = z.object({
   RATE_LIMIT_AUTH_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_AUTH_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
 
+  // Off by default even in development - the outbox/follow-up dispatchers poll
+  // every 500ms/30s and would otherwise flood the console with raw SQL on every
+  // tick. Flip to "true" only when actively debugging a specific query.
+  PRISMA_LOG_QUERIES: booleanFromString,
+
   // --- Instagram / Meta (Phase 2) ---
   // Optional: the app boots and every other feature works without these. Only
   // the Instagram OAuth/webhook routes require them, and they fail with a clear

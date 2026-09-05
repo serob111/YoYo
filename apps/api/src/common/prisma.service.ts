@@ -10,7 +10,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(API_ENV) env: ApiEnv) {
     this.client = createPrismaClient({
       databaseUrl: env.DATABASE_URL,
-      logQueries: env.NODE_ENV === "development"
+      logQueries: env.PRISMA_LOG_QUERIES
     });
   }
 
