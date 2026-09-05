@@ -3,9 +3,12 @@ import {
   ALL_TOOLS,
   FindProductInputSchema,
   FindServiceInputSchema,
+  GetContactLeadsInputSchema,
   GetOpeningHoursInputSchema,
+  GetPipelineStagesInputSchema,
   GetProductPriceInputSchema,
   GetServicePriceInputSchema,
+  GetTagsInputSchema,
   SearchKnowledgeInputSchema,
   type AiReply
 } from "../tools/definitions";
@@ -21,6 +24,9 @@ export interface ToolHandlers {
   findService(input: { name: string }): Promise<unknown>;
   getServicePrice(input: { serviceId: string }): Promise<unknown>;
   getOpeningHours(input: Record<string, never>): Promise<unknown>;
+  getContactLeads(input: Record<string, never>): Promise<unknown>;
+  getPipelineStages(input: Record<string, never>): Promise<unknown>;
+  getTags(input: Record<string, never>): Promise<unknown>;
 }
 
 export interface SalesAgentDeps {
@@ -71,6 +77,12 @@ async function executeTool(tools: ToolHandlers, name: string, input: unknown): P
       return tools.getServicePrice(GetServicePriceInputSchema.parse(input));
     case "getOpeningHours":
       return tools.getOpeningHours(GetOpeningHoursInputSchema.parse(input));
+    case "getContactLeads":
+      return tools.getContactLeads(GetContactLeadsInputSchema.parse(input));
+    case "getPipelineStages":
+      return tools.getPipelineStages(GetPipelineStagesInputSchema.parse(input));
+    case "getTags":
+      return tools.getTags(GetTagsInputSchema.parse(input));
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

@@ -19,6 +19,11 @@ import { BusinessModule } from "./business/business.module";
 import { ProductsModule } from "./products/products.module";
 import { ServicesModule } from "./services/services.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
+import { ContactsModule } from "./contacts/contacts.module";
+import { PipelinesModule } from "./pipelines/pipelines.module";
+import { LeadsModule } from "./leads/leads.module";
+import { TasksModule } from "./tasks/tasks.module";
+import { TagsModule } from "./tags/tags.module";
 
 @Module({
   imports: [
@@ -38,7 +43,12 @@ import { KnowledgeModule } from "./knowledge/knowledge.module";
     BusinessModule,
     ProductsModule,
     ServicesModule,
-    KnowledgeModule
+    KnowledgeModule,
+    ContactsModule,
+    PipelinesModule,
+    LeadsModule,
+    TasksModule,
+    TagsModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })

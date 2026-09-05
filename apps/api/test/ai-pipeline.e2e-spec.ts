@@ -1,4 +1,5 @@
 import type { INestApplication } from "@nestjs/common";
+import { getOrCreateDefaultPipeline } from "@yoyo/database";
 import { createOrgWithOwner, createTestBusinessProfile, createTestConnectedAccount } from "@yoyo/testing";
 import { TokenEncryptionService } from "@yoyo/crypto";
 import type { AICompletionRequest, AICompletionResult, AIProvider, EmbeddingProvider, EmbeddingResult } from "@yoyo/ai";
@@ -160,7 +161,7 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
             type: "tool_use",
             id: "t1",
             name: "submit_reply",
-            input: { reply: "Let me get a human for you.", intent: "complaint", needsHuman: true, actions: ["REQUEST_HUMAN_TAKEOVER"] }
+            input: { reply: "Let me get a human for you.", intent: "complaint", needsHuman: true, actions: [{ type: "REQUEST_HUMAN_TAKEOVER" }] }
           }
         ],
         usage: { inputTokens: 50, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0 }
@@ -228,6 +229,96 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
     expect(aiResponse.status).toBe("SKIPPED");
   });
 
+  describe("CRM tools/actions", () => {
+    it("calls getContactLeads then creates a lead via the CREATE_LEAD action, logging a SYSTEM activity", async () => {
+      const { triggerMessage, organization, conversation } = await seedAiActiveConversation();
+      const prisma = getPrisma(app);
+      const provider = new ScriptedAIProvider([
+        {
+          stopReason: "tool_use",
+          content: [{ type: "tool_use", id: "t1", name: "getContactLeads", input: {} }],
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 }
+        },
+        {
+          stopReason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t2",
+              name: "submit_reply",
+              input: {
+                reply: "I've noted your interest - someone will follow up!",
+                intent: "booking",
+                needsHuman: false,
+                actions: [{ type: "CREATE_LEAD", title: "Wants a wedding cake" }]
+              }
+            }
+          ],
+          usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0 }
+        }
+      ]);
+
+      const result = await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+      expect(result).toBe("sent");
+      const lead = await prisma.lead.findFirstOrThrow({ where: { organizationId: organization.id } });
+      expect(lead.title).toBe("Wants a wedding cake");
+      expect(lead.contactId).toBe(conversation.contactId);
+      expect(lead.sourceConversationId).toBe(conversation.id);
+
+      const activity = await prisma.activity.findFirstOrThrow({ where: { leadId: lead.id } });
+      expect(activity.type).toBe("SYSTEM");
+      expect(activity.actorUserId).toBeNull();
+
+      const pipeline = await prisma.pipeline.findUniqueOrThrow({ where: { id: lead.pipelineId } });
+      expect(pipeline.name).toBe("Default Pipeline");
+    });
+
+    it("ignores a hallucinated cross-organization leadId in UPDATE_LEAD_STAGE - reply still sends, other org's lead is untouched", async () => {
+      const { triggerMessage } = await seedAiActiveConversation();
+      const prisma = getPrisma(app);
+
+      const { organization: otherOrg } = await createOrgWithOwner(prisma);
+      const otherContact = await prisma.contact.create({ data: { organizationId: otherOrg.id, displayName: "Other org customer" } });
+      const otherPipeline = await getOrCreateDefaultPipeline(prisma, otherOrg.id);
+      const otherLead = await prisma.lead.create({
+        data: {
+          organizationId: otherOrg.id,
+          contactId: otherContact.id,
+          pipelineId: otherPipeline.id,
+          stageId: otherPipeline.stages[0]!.id,
+          title: "Untouchable lead"
+        }
+      });
+
+      const provider = new ScriptedAIProvider([
+        {
+          stopReason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "submit_reply",
+              input: {
+                reply: "Sure thing!",
+                intent: "other",
+                needsHuman: false,
+                actions: [{ type: "UPDATE_LEAD_STAGE", leadId: otherLead.id, stageId: otherPipeline.stages[1]!.id }]
+              }
+            }
+          ],
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 }
+        }
+      ]);
+
+      const result = await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+      expect(result).toBe("sent");
+      const unchangedLead = await prisma.lead.findUniqueOrThrow({ where: { id: otherLead.id } });
+      expect(unchangedLead.stageId).toBe(otherPipeline.stages[0]!.id);
+    });
+  });
+
   describe("searchKnowledge (real pgvector similarity, tenant-scoped)", () => {
     it("ranks the closer chunk first and never returns another organization's chunks", async () => {
       const prisma = getPrisma(app);
@@ -238,7 +329,7 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
       await insertChunkWithVector(prisma, { organizationId: orgA.id, content: "Our return policy is 30 days.", vector: makeVector(500) });
       await insertChunkWithVector(prisma, { organizationId: orgB.id, content: "Org B secret hours.", vector: makeVector(0) });
 
-      const handlers = buildToolHandlers(prisma, new FixedEmbeddingProvider(makeVector(0)), orgA.id);
+      const handlers = buildToolHandlers(prisma, new FixedEmbeddingProvider(makeVector(0)), orgA.id, "unused-contact-id");
       const results = (await handlers.searchKnowledge({ query: "what are your hours" })) as { id: string; content: string }[];
 
       expect(results[0]?.id).toBe(closeChunk.id);

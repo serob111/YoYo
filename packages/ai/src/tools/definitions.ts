@@ -12,6 +12,22 @@ export const GetProductPriceInputSchema = z.object({ productId: z.string().min(1
 export const FindServiceInputSchema = z.object({ name: z.string().min(1) });
 export const GetServicePriceInputSchema = z.object({ serviceId: z.string().min(1) });
 export const GetOpeningHoursInputSchema = z.object({});
+export const GetContactLeadsInputSchema = z.object({});
+export const GetPipelineStagesInputSchema = z.object({});
+export const GetTagsInputSchema = z.object({});
+
+// Mutating CRM actions stay declarative (proposed here, validated once, then
+// executed atomically by the backend) rather than live tool calls mid-loop -
+// see ADR-0005. Referenced ids (leadId/stageId/tagId) are re-validated against
+// the caller's organizationId before executing; a hallucinated/cross-tenant id
+// is dropped silently rather than failing the whole reply.
+export const AiActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("REQUEST_HUMAN_TAKEOVER") }),
+  z.object({ type: z.literal("CREATE_LEAD"), title: z.string().min(1) }),
+  z.object({ type: z.literal("UPDATE_LEAD_STAGE"), leadId: z.string().min(1), stageId: z.string().min(1) }),
+  z.object({ type: z.literal("ADD_TAG"), leadId: z.string().min(1), tagId: z.string().min(1) })
+]);
+export type AiAction = z.infer<typeof AiActionSchema>;
 
 // The terminating tool - calling this IS the structured final output, not a
 // live side-effecting action. Using a tool instead of output_config.format
@@ -21,9 +37,7 @@ export const AiReplySchema = z.object({
   reply: z.string().min(1),
   intent: z.enum(["question", "pricing", "booking", "complaint", "other"]),
   needsHuman: z.boolean(),
-  // Deliberately narrow: CRM (Phase 4) and Billing (Phase 7) don't exist yet, so
-  // createLead/updateLeadStage/addTag are not offered as actions in this phase.
-  actions: z.array(z.enum(["REQUEST_HUMAN_TAKEOVER"])).default([])
+  actions: z.array(AiActionSchema).default([])
 });
 export type AiReply = z.infer<typeof AiReplySchema>;
 
@@ -82,6 +96,21 @@ export const READ_TOOLS: AIToolDefinition[] = [
     name: "getOpeningHours",
     description: "Get the business's configured hours of operation and timezone.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false }
+  },
+  {
+    name: "getContactLeads",
+    description: "List this customer's existing leads/deals (if any), with their current stage. Check this before proposing to create a new lead, to avoid creating a duplicate.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false }
+  },
+  {
+    name: "getPipelineStages",
+    description: "List the sales pipeline's stages (id, name, and whether each is a won/lost terminal stage), for use with the UPDATE_LEAD_STAGE action.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false }
+  },
+  {
+    name: "getTags",
+    description: "List the business's existing tags (id and name), for use with the ADD_TAG action. You may only use tags from this list - never invent a new tag name.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false }
   }
 ];
 
@@ -97,8 +126,30 @@ export const SUBMIT_REPLY_TOOL: AIToolDefinition = {
       needsHuman: { type: "boolean", description: "True if this conversation needs a human to take over instead of (or in addition to) your reply." },
       actions: {
         type: "array",
-        items: { type: "string", enum: ["REQUEST_HUMAN_TAKEOVER"] },
-        description: "Structured follow-up actions for the backend to execute. Leave empty if none apply."
+        description: "Structured follow-up actions for the backend to execute. Leave empty if none apply.",
+        items: {
+          oneOf: [
+            { type: "object", properties: { type: { const: "REQUEST_HUMAN_TAKEOVER" } }, required: ["type"], additionalProperties: false },
+            {
+              type: "object",
+              properties: { type: { const: "CREATE_LEAD" }, title: { type: "string" } },
+              required: ["type", "title"],
+              additionalProperties: false
+            },
+            {
+              type: "object",
+              properties: { type: { const: "UPDATE_LEAD_STAGE" }, leadId: { type: "string" }, stageId: { type: "string" } },
+              required: ["type", "leadId", "stageId"],
+              additionalProperties: false
+            },
+            {
+              type: "object",
+              properties: { type: { const: "ADD_TAG" }, leadId: { type: "string" }, tagId: { type: "string" } },
+              required: ["type", "leadId", "tagId"],
+              additionalProperties: false
+            }
+          ]
+        }
       }
     },
     required: ["reply", "intent", "needsHuman"],

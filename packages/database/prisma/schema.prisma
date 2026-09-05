@@ -58,6 +58,9 @@ model User {
   sentInvites          OrganizationMember[]      @relation("InvitedBy")
   auditLogEntries      AuditLog[]
   assignedConversations Conversation[]
+  assignedLeads        Lead[]
+  assignedTasks        Task[]
+  loggedActivities     Activity[]
 
   @@map("users")
 }
@@ -116,6 +119,11 @@ model Organization {
   services          Service[]
   knowledgeChunks   KnowledgeChunk[]
   aiResponses       AiResponse[]
+  pipelines         Pipeline[]
+  leads             Lead[]
+  activities        Activity[]
+  tasks             Task[]
+  tags              Tag[]
 
   @@map("organizations")
 }
@@ -297,6 +305,7 @@ model Contact {
 
   identities    ContactIdentity[]
   conversations Conversation[]
+  leads         Lead[]
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("contacts")
@@ -337,6 +346,7 @@ model Conversation {
 
   messages Message[]
   aiResponses AiResponse[]
+  sourcedLeads Lead[]
 
   @@unique([connectedAccountId, contactId])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -520,4 +530,159 @@ model AiResponse {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("ai_responses")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: CRM. See docs/architecture/bounded-contexts.md and
+// docs/architecture/erd.md's forward-look for the design this implements.
+// ---------------------------------------------------------------------------
+
+enum ActivityType {
+  NOTE
+  STAGE_CHANGE
+  MESSAGE_LOGGED
+  TASK_COMPLETED
+  SYSTEM
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+// One pipeline per org for the MVP (auto-created lazily via
+// getOrCreateDefaultPipeline in @yoyo/database), but not hard-locked to one -
+// no @@unique([organizationId]) - so a second pipeline is a schema-compatible
+// later addition, not a migration.
+model Pipeline {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  stages PipelineStage[]
+  leads  Lead[]
+
+  // Not a "one pipeline per org" lock - just makes the lazy
+  // find-or-create race safe (concurrent creators hit P2002 and re-fetch
+  // instead of duplicating), per docs/adr's unique-constraint-as-claim pattern.
+  @@unique([organizationId, name])
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id         String   @id @default(uuid())
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name       String
+  order      Int
+  isWon      Boolean  @default(false)
+  isLost     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  leads Lead[]
+
+  @@unique([pipelineId, order])
+  @@map("pipeline_stages")
+}
+
+model Lead {
+  id                   String    @id @default(uuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId            String
+  contact              Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  pipelineId           String
+  pipeline             Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stageId              String
+  stage                PipelineStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  title                String
+  valueCents           Int?
+  currency             String    @default("USD")
+  sourceConversationId String?
+  sourceConversation   Conversation? @relation(fields: [sourceConversationId], references: [id], onDelete: SetNull)
+  assignedUserId       String?
+  assignedUser         User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  closedAt             DateTime?
+
+  activities Activity[]
+  tasks      Task[]
+  tags       LeadTag[]
+
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@index([contactId])
+  @@map("leads")
+}
+
+// Append-only timeline per lead - distinct from AuditLog (security/compliance
+// audit trail): this is a sales-relevant history view (notes, stage changes,
+// logged messages, completed tasks), some human-authored, some system/AI-authored
+// (actorUserId null).
+model Activity {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type           ActivityType
+  content        String
+  actorUserId    String?
+  actorUser      User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([leadId, createdAt(sort: Desc)])
+  @@map("activities")
+}
+
+// No reminder/notification/scheduling logic here - that's Phase 5's follow-up
+// scheduler. A Task here is just an assignable to-do tied to a lead.
+model Task {
+  id             String     @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String
+  lead           Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  dueAt          DateTime?
+  status         TaskStatus @default(OPEN)
+  assignedUserId String?
+  assignedUser   User?      @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, dueAt])
+  @@index([leadId])
+  @@map("tasks")
+}
+
+model Tag {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  color          String?
+  createdAt      DateTime @default(now())
+
+  leads LeadTag[]
+
+  @@unique([organizationId, name])
+  @@map("tags")
+}
+
+model LeadTag {
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([leadId, tagId])
+  @@map("lead_tags")
 }

@@ -1,6 +1,6 @@
 # Yoyo — AI Sales & Social Media Employee
 
-Multi-tenant SaaS platform. See `docs/architecture/` for the system design and `docs/adr/` for key decisions. This repository currently implements **Phase 1 (Foundation)**, **Phase 2 (Instagram messaging)**, and **Phase 3 (AI sales)** — see `docs/architecture/mvp-scope.md` for what each phase does and doesn't include.
+Multi-tenant SaaS platform. See `docs/architecture/` for the system design and `docs/adr/` for key decisions. This repository currently implements **Phase 1 (Foundation)**, **Phase 2 (Instagram messaging)**, **Phase 3 (AI sales)**, and **Phase 4 (CRM)** — see `docs/architecture/mvp-scope.md` for what each phase does and doesn't include.
 
 ## Stack
 

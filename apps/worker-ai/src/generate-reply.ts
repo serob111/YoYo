@@ -1,5 +1,5 @@
-import type { PrismaClient } from "@yoyo/database";
-import { calculateCostCents, runSalesAgent, type AIMessage, type AIProvider, type EmbeddingProvider, type ToolHandlers } from "@yoyo/ai";
+import { getOrCreateDefaultPipeline, type Prisma, type PrismaClient } from "@yoyo/database";
+import { calculateCostCents, runSalesAgent, type AiAction, type AIMessage, type AIProvider, type EmbeddingProvider, type ToolHandlers } from "@yoyo/ai";
 
 export type GenerateAiReplyResult = "sent" | "skipped" | "not_found" | "cost_capped" | "failed";
 
@@ -13,6 +13,7 @@ function buildSystemPrompt(businessName: string, description: string | null, ton
     `The business's timezone is ${timezone}.`,
     "Use the available tools to look up real product, service, and knowledge-base information before answering - never invent prices, availability, or policies.",
     "Reply in the same language the customer is writing in.",
+    "If the customer shows buying intent, check getContactLeads first to avoid creating a duplicate lead, then propose CREATE_LEAD if none fits. Use UPDATE_LEAD_STAGE to reflect real progress. Only tag via ADD_TAG using an id from getTags - never invent a new tag name.",
     "You must end your turn by calling submit_reply exactly once with your final answer - do not call it more than once, and do not answer in plain text."
   ]
     .filter((line): line is string => line !== null)
@@ -28,7 +29,12 @@ function toAgentMessages(history: { senderType: string; text: string | null }[])
     }));
 }
 
-export function buildToolHandlers(prisma: PrismaClient, embeddingProvider: EmbeddingProvider, organizationId: string): ToolHandlers {
+export function buildToolHandlers(
+  prisma: PrismaClient,
+  embeddingProvider: EmbeddingProvider,
+  organizationId: string,
+  contactId: string
+): ToolHandlers {
   return {
     async searchKnowledge({ query }) {
       const { vectors } = await embeddingProvider.embed([query], "query");
@@ -67,8 +73,98 @@ export function buildToolHandlers(prisma: PrismaClient, embeddingProvider: Embed
     async getOpeningHours() {
       const profile = await prisma.businessProfile.findUnique({ where: { organizationId } });
       return { timezone: profile?.timezone ?? "UTC", businessHours: profile?.businessHours ?? null };
+    },
+    async getContactLeads() {
+      const leads = await prisma.lead.findMany({
+        where: { organizationId, contactId },
+        include: { stage: true },
+        orderBy: { updatedAt: "desc" }
+      });
+      return leads.map((lead) => ({ id: lead.id, title: lead.title, stageName: lead.stage.name, isWon: lead.stage.isWon, isLost: lead.stage.isLost }));
+    },
+    async getPipelineStages() {
+      const pipeline = await getOrCreateDefaultPipeline(prisma, organizationId);
+      return pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name, isWon: stage.isWon, isLost: stage.isLost }));
+    },
+    async getTags() {
+      const tags = await prisma.tag.findMany({ where: { organizationId }, orderBy: { name: "asc" } });
+      return tags.map((tag) => ({ id: tag.id, name: tag.name }));
     }
   };
+}
+
+/**
+ * Executes the AI's proposed CREATE_LEAD/UPDATE_LEAD_STAGE/ADD_TAG actions
+ * (declarative, per ADR-0005 - not live tool calls). Every referenced
+ * lead/stage/tag id is re-validated against organizationId here, even though
+ * the ids came from this same org's read tools moments earlier - a
+ * hallucinated or otherwise-invalid id is skipped silently (not thrown) so one
+ * bogus proposed action never blocks the customer-facing reply from sending.
+ */
+async function applyAiActions(
+  tx: Prisma.TransactionClient,
+  context: { organizationId: string; conversationId: string; contactId: string },
+  actions: AiAction[]
+): Promise<{ requestedHumanTakeover: boolean }> {
+  let requestedHumanTakeover = false;
+
+  for (const action of actions) {
+    switch (action.type) {
+      case "REQUEST_HUMAN_TAKEOVER":
+        requestedHumanTakeover = true;
+        break;
+
+      case "CREATE_LEAD": {
+        const pipeline = await getOrCreateDefaultPipeline(tx, context.organizationId);
+        const firstStage = pipeline.stages[0];
+        if (!firstStage) break;
+        const lead = await tx.lead.create({
+          data: {
+            organizationId: context.organizationId,
+            contactId: context.contactId,
+            pipelineId: pipeline.id,
+            stageId: firstStage.id,
+            title: action.title,
+            sourceConversationId: context.conversationId
+          }
+        });
+        await tx.activity.create({
+          data: { organizationId: context.organizationId, leadId: lead.id, type: "SYSTEM", content: `Lead created by AI: ${action.title}` }
+        });
+        break;
+      }
+
+      case "UPDATE_LEAD_STAGE": {
+        const lead = await tx.lead.findUnique({ where: { id: action.leadId } });
+        if (!lead || lead.organizationId !== context.organizationId) break;
+        const stage = await tx.pipelineStage.findUnique({ where: { id: action.stageId } });
+        if (!stage || stage.pipelineId !== lead.pipelineId) break;
+        await tx.lead.update({
+          where: { id: lead.id },
+          data: { stageId: stage.id, closedAt: stage.isWon || stage.isLost ? new Date() : null }
+        });
+        await tx.activity.create({
+          data: { organizationId: context.organizationId, leadId: lead.id, type: "STAGE_CHANGE", content: `Stage changed to ${stage.name} by AI` }
+        });
+        break;
+      }
+
+      case "ADD_TAG": {
+        const lead = await tx.lead.findUnique({ where: { id: action.leadId } });
+        if (!lead || lead.organizationId !== context.organizationId) break;
+        const tag = await tx.tag.findUnique({ where: { id: action.tagId } });
+        if (!tag || tag.organizationId !== context.organizationId) break;
+        await tx.leadTag.upsert({
+          where: { leadId_tagId: { leadId: lead.id, tagId: tag.id } },
+          create: { leadId: lead.id, tagId: tag.id },
+          update: {}
+        });
+        break;
+      }
+    }
+  }
+
+  return { requestedHumanTakeover };
 }
 
 /**
@@ -145,7 +241,7 @@ export async function generateAiReply(
   });
 
   const agentResult = await runSalesAgent(
-    { aiProvider, tools: buildToolHandlers(prisma, embeddingProvider, organizationId) },
+    { aiProvider, tools: buildToolHandlers(prisma, embeddingProvider, organizationId, conversation.contactId) },
     {
       model,
       systemPrompt: buildSystemPrompt(
@@ -211,11 +307,17 @@ export async function generateAiReply(
       }
     });
 
+    const { requestedHumanTakeover } = await applyAiActions(
+      tx,
+      { organizationId, conversationId: conversation.id, contactId: conversation.contactId },
+      reply.actions
+    );
+
     await tx.conversation.update({
       where: { id: conversation.id },
       data: {
         lastMessageAt: new Date(),
-        ...(reply.actions.includes("REQUEST_HUMAN_TAKEOVER") ? { automationState: "PAUSED" as const } : {})
+        ...(requestedHumanTakeover ? { automationState: "PAUSED" as const } : {})
       }
     });
 

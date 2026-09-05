@@ -1,7 +1,7 @@
 # ADR-0005: AI provider abstraction, terminating-tool structured output, and cost enforcement
 
 ## Status
-Accepted — implemented in Phase 3 (`packages/ai`, `apps/worker-ai`).
+Accepted — implemented in Phase 3 (`packages/ai`, `apps/worker-ai`); the `AiReplySchema.actions` discriminated union predicted in Consequences below was extended with `CREATE_LEAD`/`UPDATE_LEAD_STAGE`/`ADD_TAG` in Phase 4 exactly as planned, with no changes to the terminating-tool mechanism itself.
 
 ## Context
 The brief requires an AI sales agent whose replies are schema-validated, that supports multiple LLM vendors without a rewrite, that can look up real business data via tools, and whose cost is bounded per org. Three concrete design questions needed an answer before implementation:
@@ -26,5 +26,5 @@ The brief requires an AI sales agent whose replies are schema-validated, that su
 
 ## Consequences
 - Adding a second AI vendor means a new `packages/ai/src/<vendor>/` implementation of `AIProvider`/`EmbeddingProvider` plus a pricing-table entry — no changes to `sales-agent.ts`, `apps/worker-ai`, or the schema.
-- CRM-dependent tools/actions (`createLead`, `updateLeadStage`, `addTag`) are not offered by the agent yet — `AiReplySchema.actions` only allows `REQUEST_HUMAN_TAKEOVER` until Phase 4 exists to receive them.
+- CRM-dependent tools/actions (`CREATE_LEAD`, `UPDATE_LEAD_STAGE`, `ADD_TAG`) shipped in Phase 4 as additional variants of the same `AiReplySchema.actions` discriminated union, validated by `apps/worker-ai`'s `applyAiActions` against the calling org before mutating anything (a hallucinated/cross-tenant id is skipped silently, not thrown) — proven live against a real customer message.
 - Because embeddings (Voyage) and chat (Anthropic) are two different vendors by design, `packages/ai` intentionally has two independent provider interfaces rather than one combined "AI vendor" interface — a business could plausibly use Anthropic for chat and OpenAI for embeddings, or vice versa.

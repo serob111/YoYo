@@ -27,11 +27,11 @@ Owns the sales agent orchestration, knowledge base/RAG, and AI usage accounting.
 
 - `AIModule`, `AIAgentModule`, `KnowledgeModule`, `RetrievalModule`, `AIToolsModule`
 
-## CRM (Phase 4 — designed, not implemented)
+## CRM (Phase 4 — implemented)
 
-Owns contacts, leads, pipelines, activities, tasks. Consumes normalized Messaging events and AI tool calls; emits `LeadStageChanged`-style events for the Automations context.
+Owns leads, pipelines, activities, tasks, tags (`ContactsModule` ended up living here too - Phase 2 designed it under Messaging but never implemented it, so Phase 4 added it since CRM needed contact read access first). AI tool calls mutate CRM only through the declarative `CREATE_LEAD`/`UPDATE_LEAD_STAGE`/`ADD_TAG` actions on the agent's final structured reply (see ADR-0005), never live tool calls mid-loop. `LeadStageChanged`-style events for the Automations context are not emitted yet - deferred until Phase 5 exists to consume them.
 
-- `LeadsModule`, `PipelinesModule`, `ActivitiesModule`, `TasksModule`
+- `ContactsModule`, `PipelinesModule`, `LeadsModule`, `TasksModule`, `TagsModule`
 
 ## Automations & Follow-ups (Phase 5 — designed, not implemented)
 

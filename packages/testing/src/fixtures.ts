@@ -1,4 +1,4 @@
-import type { BusinessProfile, ConnectedAccount, ConnectedAccountStatus, OrganizationRole, PrismaClient, Provider } from "@yoyo/database";
+import type { BusinessProfile, Contact, ConnectedAccount, ConnectedAccountStatus, Lead, OrganizationRole, PrismaClient, Provider, Tag } from "@yoyo/database";
 import { randomUUID } from "node:crypto";
 
 export async function createTestUser(
@@ -77,6 +77,33 @@ export async function createTestBusinessProfile(
       aiEnabled: params.aiEnabled ?? true,
       monthlyCostCapCents: params.monthlyCostCapCents ?? null,
       defaultModel: params.defaultModel ?? null
+    }
+  });
+}
+
+export async function createTestContact(prisma: PrismaClient, params: { organizationId: string; displayName?: string }): Promise<Contact> {
+  return prisma.contact.create({
+    data: { organizationId: params.organizationId, displayName: params.displayName ?? "Test Customer" }
+  });
+}
+
+export async function createTestTag(prisma: PrismaClient, params: { organizationId: string; name?: string }): Promise<Tag> {
+  return prisma.tag.create({
+    data: { organizationId: params.organizationId, name: params.name ?? `tag-${randomUUID().slice(0, 8)}` }
+  });
+}
+
+export async function createTestLead(
+  prisma: PrismaClient,
+  params: { organizationId: string; contactId: string; pipelineId: string; stageId: string; title?: string }
+): Promise<Lead> {
+  return prisma.lead.create({
+    data: {
+      organizationId: params.organizationId,
+      contactId: params.contactId,
+      pipelineId: params.pipelineId,
+      stageId: params.stageId,
+      title: params.title ?? "Test Lead"
     }
   });
 }

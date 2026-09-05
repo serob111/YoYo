@@ -15,15 +15,53 @@ describe("AiReplySchema", () => {
     expect(AiReplySchema.safeParse({ reply: "hi", intent: "not_a_real_intent", needsHuman: false }).success).toBe(false);
   });
 
-  it("rejects an action outside the Phase 3 scope (e.g. a CRM action not yet implemented)", () => {
-    expect(AiReplySchema.safeParse({ reply: "hi", intent: "question", needsHuman: false, actions: ["CREATE_LEAD"] }).success).toBe(false);
+  it("rejects an unknown action type", () => {
+    expect(AiReplySchema.safeParse({ reply: "hi", intent: "question", needsHuman: false, actions: [{ type: "DELETE_EVERYTHING" }] }).success).toBe(false);
+  });
+
+  it("accepts a CREATE_LEAD action with a title", () => {
+    const parsed = AiReplySchema.parse({
+      reply: "Sure, I'll note that down.",
+      intent: "booking",
+      needsHuman: false,
+      actions: [{ type: "CREATE_LEAD", title: "Wants a custom cake" }]
+    });
+    expect(parsed.actions).toEqual([{ type: "CREATE_LEAD", title: "Wants a custom cake" }]);
+  });
+
+  it("rejects a CREATE_LEAD action missing its title", () => {
+    expect(AiReplySchema.safeParse({ reply: "hi", intent: "booking", needsHuman: false, actions: [{ type: "CREATE_LEAD" }] }).success).toBe(false);
+  });
+
+  it("accepts UPDATE_LEAD_STAGE and ADD_TAG actions with their required ids", () => {
+    const parsed = AiReplySchema.parse({
+      reply: "Great, updating your order.",
+      intent: "other",
+      needsHuman: false,
+      actions: [
+        { type: "UPDATE_LEAD_STAGE", leadId: "lead-1", stageId: "stage-1" },
+        { type: "ADD_TAG", leadId: "lead-1", tagId: "tag-1" }
+      ]
+    });
+    expect(parsed.actions).toHaveLength(2);
   });
 });
 
 describe("ALL_TOOLS", () => {
   it("includes every read tool plus the terminating submit_reply tool exactly once", () => {
     const names = ALL_TOOLS.map((tool) => tool.name);
-    expect(names).toEqual(["searchKnowledge", "findProduct", "getProductPrice", "findService", "getServicePrice", "getOpeningHours", "submit_reply"]);
+    expect(names).toEqual([
+      "searchKnowledge",
+      "findProduct",
+      "getProductPrice",
+      "findService",
+      "getServicePrice",
+      "getOpeningHours",
+      "getContactLeads",
+      "getPipelineStages",
+      "getTags",
+      "submit_reply"
+    ]);
     expect(new Set(names).size).toBe(names.length);
   });
 });

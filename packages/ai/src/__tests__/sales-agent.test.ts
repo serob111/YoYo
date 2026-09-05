@@ -29,6 +29,9 @@ const noopTools: ToolHandlers = {
   getProductPrice: async () => ({}),
   findService: async () => ({}),
   getServicePrice: async () => ({}),
+  getContactLeads: async () => ({}),
+  getPipelineStages: async () => ({}),
+  getTags: async () => ({}),
   getOpeningHours: async () => ({})
 };
 
