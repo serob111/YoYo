@@ -33,7 +33,10 @@ export interface AICompletionRequest {
 export interface AIUsage {
   inputTokens: number;
   outputTokens: number;
+  /** Tokens read from the prompt cache - billed at ~10% of the base input rate. */
   cacheReadTokens: number;
+  /** Tokens written to the prompt cache on a cache miss - billed at ~125% of the base input rate (5-minute TTL). */
+  cacheCreationTokens: number;
 }
 
 export type AIStopReason = "end_turn" | "tool_use" | "max_tokens" | "refusal" | "stop_sequence" | "other";

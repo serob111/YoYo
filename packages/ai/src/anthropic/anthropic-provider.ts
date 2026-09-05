@@ -14,16 +14,25 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async complete(request: AICompletionRequest): Promise<AICompletionResult> {
+    // Prompt caching: the system prompt and tool definitions are near-identical
+    // across turns of the same conversation (and across conversations for the
+    // same org), so both are marked as cache breakpoints. A cache_control on the
+    // last tool caches the entire tools array up to that point; a separate one on
+    // the system block caches it too. Cached reads cost ~10% of the base input
+    // rate - this is the highest-leverage cost lever that costs zero quality.
+    const tools = request.tools?.map((tool, index, all) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.inputSchema as Anthropic.Messages.Tool.InputSchema,
+      ...(index === all.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {})
+    }));
+
     const response = await this.client.messages.create({
       model: request.model,
-      system: request.system,
+      system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
       max_tokens: request.maxTokens,
       messages: request.messages.map(toAnthropicMessage),
-      tools: request.tools?.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.inputSchema as Anthropic.Messages.Tool.InputSchema
-      }))
+      tools
     });
 
     return {
@@ -32,7 +41,8 @@ export class AnthropicProvider implements AIProvider {
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
-        cacheReadTokens: response.usage.cache_read_input_tokens ?? 0
+        cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+        cacheCreationTokens: response.usage.cache_creation_input_tokens ?? 0
       }
     };
   }

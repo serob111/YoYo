@@ -52,7 +52,8 @@ function addUsage(a: AIUsage, b: AIUsage): AIUsage {
   return {
     inputTokens: a.inputTokens + b.inputTokens,
     outputTokens: a.outputTokens + b.outputTokens,
-    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens
+    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
+    cacheCreationTokens: a.cacheCreationTokens + b.cacheCreationTokens
   };
 }
 
@@ -85,7 +86,7 @@ async function executeTool(tools: ToolHandlers, name: string, input: unknown): P
 export async function runSalesAgent(deps: SalesAgentDeps, context: SalesAgentContext): Promise<SalesAgentResult> {
   const maxTurns = context.maxToolTurns ?? DEFAULT_MAX_TOOL_TURNS;
   const messages: AIMessage[] = [...context.messages];
-  let usage: AIUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
+  let usage: AIUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 };
   let toolCallCount = 0;
 
   for (let turn = 0; turn < maxTurns; turn++) {

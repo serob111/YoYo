@@ -3,7 +3,7 @@ import { runSalesAgent, type SalesAgentDeps, type ToolHandlers } from "../agent/
 import type { AICompletionRequest, AICompletionResult, AIProvider } from "../types";
 
 function usage(inputTokens = 10, outputTokens = 5): AICompletionResult["usage"] {
-  return { inputTokens, outputTokens, cacheReadTokens: 0 };
+  return { inputTokens, outputTokens, cacheReadTokens: 0, cacheCreationTokens: 0 };
 }
 
 class ScriptedAIProvider implements AIProvider {
@@ -66,7 +66,7 @@ describe("runSalesAgent", () => {
 
     expect(result.reply).toEqual({ reply: "We're open 9-5.", intent: "question", needsHuman: false, actions: [] });
     expect(result.toolCallCount).toBe(1);
-    expect(result.usage).toEqual({ inputTokens: 250, outputTokens: 50, cacheReadTokens: 0 });
+    expect(result.usage).toEqual({ inputTokens: 250, outputTokens: 50, cacheReadTokens: 0, cacheCreationTokens: 0 });
     expect(provider.requests).toHaveLength(2);
   });
 

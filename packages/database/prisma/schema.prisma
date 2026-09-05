@@ -511,6 +511,7 @@ model AiResponse {
   inputTokens      Int?
   outputTokens     Int?
   cacheReadTokens  Int?
+  cacheCreationTokens Int?
   costCents        Int?
   toolCallCount    Int              @default(0)
   errorMessage     String?

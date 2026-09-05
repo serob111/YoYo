@@ -170,6 +170,7 @@ export async function generateAiReply(
           inputTokens: agentResult.usage.inputTokens,
           outputTokens: agentResult.usage.outputTokens,
           cacheReadTokens: agentResult.usage.cacheReadTokens,
+          cacheCreationTokens: agentResult.usage.cacheCreationTokens,
           costCents,
           toolCallCount: agentResult.toolCallCount,
           errorMessage: "Agent did not produce a valid structured reply",
@@ -240,6 +241,7 @@ export async function generateAiReply(
         inputTokens: agentResult.usage.inputTokens,
         outputTokens: agentResult.usage.outputTokens,
         cacheReadTokens: agentResult.usage.cacheReadTokens,
+        cacheCreationTokens: agentResult.usage.cacheCreationTokens,
         costCents,
         toolCallCount: agentResult.toolCallCount,
         completedAt: new Date()

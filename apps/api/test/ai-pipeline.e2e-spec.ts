@@ -52,7 +52,7 @@ const SIMPLE_REPLY_RESULT: AICompletionResult = {
   content: [
     { type: "tool_use", id: "t1", name: "submit_reply", input: { reply: "We're open 9-5!", intent: "question", needsHuman: false, actions: [] } }
   ],
-  usage: { inputTokens: 100_000, outputTokens: 20_000, cacheReadTokens: 0 }
+  usage: { inputTokens: 100_000, outputTokens: 20_000, cacheReadTokens: 0, cacheCreationTokens: 0 }
 };
 
 describe("AI sales pipeline (apps/worker-ai)", () => {
@@ -163,7 +163,7 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
             input: { reply: "Let me get a human for you.", intent: "complaint", needsHuman: true, actions: ["REQUEST_HUMAN_TAKEOVER"] }
           }
         ],
-        usage: { inputTokens: 50, outputTokens: 10, cacheReadTokens: 0 }
+        usage: { inputTokens: 50, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0 }
       }
     ]);
 

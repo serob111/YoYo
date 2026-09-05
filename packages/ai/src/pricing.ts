@@ -12,10 +12,18 @@ const MODEL_PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: 
 
 const DEFAULT_PRICING: { input: number; output: number } = { input: 3, output: 15 };
 
-/** Cache-read tokens are billed at the input rate (Anthropic discounts them upstream in the token count itself). */
+// Standard Anthropic prompt-caching multipliers on the base input rate, for the
+// default 5-minute-TTL ephemeral cache_control this codebase uses exclusively
+// (see AnthropicProvider.complete). A 1-hour TTL, if ever used, is priced at 2x
+// instead of 1.25x - not applicable here.
+const CACHE_WRITE_MULTIPLIER = 1.25;
+const CACHE_READ_MULTIPLIER = 0.1;
+
 export function calculateCostCents(model: string, usage: AIUsage): number {
   const pricing = MODEL_PRICING_PER_MILLION_TOKENS[model] ?? DEFAULT_PRICING;
-  const inputCost = ((usage.inputTokens + usage.cacheReadTokens) / 1_000_000) * pricing.input;
+  const regularInputCost = (usage.inputTokens / 1_000_000) * pricing.input;
+  const cacheWriteCost = (usage.cacheCreationTokens / 1_000_000) * pricing.input * CACHE_WRITE_MULTIPLIER;
+  const cacheReadCost = (usage.cacheReadTokens / 1_000_000) * pricing.input * CACHE_READ_MULTIPLIER;
   const outputCost = (usage.outputTokens / 1_000_000) * pricing.output;
-  return Math.round((inputCost + outputCost) * 100);
+  return Math.round((regularInputCost + cacheWriteCost + cacheReadCost + outputCost) * 100);
 }
