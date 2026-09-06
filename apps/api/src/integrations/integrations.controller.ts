@@ -9,6 +9,7 @@ import { RequireCapability } from "../common/require-capability.decorator";
 import { API_ENV } from "../common/env.tokens";
 import { OAuthStateService } from "./oauth-state.service";
 import { InstagramProviderFactory } from "./instagram-provider.factory";
+import { TikTokProviderFactory } from "./tiktok-provider.factory";
 import { ConnectedAccountsService } from "./connected-accounts.service";
 
 @Controller("organizations/:organizationId/integrations/instagram")
@@ -26,6 +27,72 @@ export class IntegrationsController {
     const state = this.oauthState.sign({ organizationId, userId: user.id });
     const url = provider.getAuthorizationUrl(state, this.instagramProviderFactory.redirectUri());
     res.redirect(url);
+  }
+}
+
+@Controller("organizations/:organizationId/integrations/tiktok")
+@UseGuards(SessionGuard, TenantContextGuard, CapabilityGuard)
+export class TikTokIntegrationsController {
+  constructor(
+    private readonly oauthState: OAuthStateService,
+    private readonly tiktokProviderFactory: TikTokProviderFactory
+  ) {}
+
+  @Get("authorize")
+  @RequireCapability("manageIntegrations")
+  authorize(@Param("organizationId") organizationId: string, @CurrentUser() user: CurrentUserPayload, @Res() res: Response) {
+    const provider = this.tiktokProviderFactory.create();
+    const state = this.oauthState.sign({ organizationId, userId: user.id });
+    const url = provider.getAuthorizationUrl(state, this.tiktokProviderFactory.redirectUri());
+    res.redirect(url);
+  }
+}
+
+// TikTok redirects here directly (not org-scoped in the URL - the org comes
+// from the signed state), mirroring InstagramOAuthCallbackController.
+@Controller("integrations/tiktok")
+export class TikTokOAuthCallbackController {
+  constructor(
+    private readonly oauthState: OAuthStateService,
+    private readonly tiktokProviderFactory: TikTokProviderFactory,
+    private readonly connectedAccounts: ConnectedAccountsService,
+    @Inject(API_ENV) private readonly env: ApiEnv
+  ) {}
+
+  @Get("callback")
+  async callback(@Query("code") code: string | undefined, @Query("state") state: string | undefined, @Query("error") error: string | undefined, @Res() res: Response) {
+    const failureRedirect = `${this.env.WEB_APP_URL}/integrations/tiktok/error`;
+    if (error || !code || !state) {
+      res.redirect(`${failureRedirect}?reason=${encodeURIComponent(error ?? "missing_code")}`);
+      return;
+    }
+
+    let payload;
+    try {
+      payload = this.oauthState.verify(state);
+    } catch {
+      res.redirect(`${failureRedirect}?reason=invalid_state`);
+      return;
+    }
+
+    try {
+      const provider = this.tiktokProviderFactory.create();
+      const redirectUri = this.tiktokProviderFactory.redirectUri();
+      const tokens = await provider.exchangeAuthorizationCode(code, redirectUri);
+      const profile = await provider.getAccountProfile(tokens.accessToken);
+      const capabilities = provider.getCapabilities(tokens.scopes, profile.accountType);
+
+      // Unaudited TikTok apps are forced to private-only post visibility - a
+      // real, permanent platform restriction, surfaced here rather than as a
+      // ProviderCapabilities flag (see packages/integrations/src/tiktok/capabilities.ts).
+      await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "TIKTOK", profile, tokens, capabilities, {
+        visibilityRestricted: true
+      });
+
+      res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
+    } catch {
+      res.redirect(`${failureRedirect}?reason=connection_failed`);
+    }
   }
 }
 
@@ -63,7 +130,7 @@ export class InstagramOAuthCallbackController {
       const profile = await provider.getAccountProfile(tokens.accessToken);
       const capabilities = provider.getCapabilities(tokens.scopes, profile.accountType);
 
-      await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, profile, tokens, capabilities);
+      await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "INSTAGRAM", profile, tokens, capabilities);
 
       res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
     } catch {

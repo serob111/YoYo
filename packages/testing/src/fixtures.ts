@@ -6,9 +6,13 @@ import type {
   Contact,
   ConnectedAccount,
   ConnectedAccountStatus,
+  ContentItem,
+  ContentMediaAsset,
+  ContentPostType,
   FollowUp,
   FollowUpActionType,
   Lead,
+  MediaAssetKind,
   OrganizationRole,
   Prisma,
   PrismaClient,
@@ -67,6 +71,7 @@ export async function createTestConnectedAccount(
     encryptedAccessToken: string;
     provider?: Provider;
     status?: ConnectedAccountStatus;
+    capabilities?: Record<string, boolean>;
   }
 ): Promise<ConnectedAccount> {
   return prisma.connectedAccount.create({
@@ -76,7 +81,7 @@ export async function createTestConnectedAccount(
       externalAccountId: params.externalAccountId ?? `ig-${randomUUID()}`,
       encryptedAccessToken: params.encryptedAccessToken,
       status: params.status ?? "CONNECTED",
-      capabilities: { oauth: true, inboundMessaging: true, outboundMessaging: true, webhooks: true }
+      capabilities: params.capabilities ?? { oauth: true, inboundMessaging: true, outboundMessaging: true, webhooks: true }
     }
   });
 }
@@ -166,6 +171,56 @@ export async function createTestAutomation(
       actionType: params.actionType ?? "CREATE_TASK",
       actionConfig: params.actionConfig ?? { title: "Test automation task" },
       enabled: params.enabled ?? true
+    }
+  });
+}
+
+export async function createTestContentItem(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    connectedAccountId: string;
+    provider?: Provider;
+    postType?: ContentPostType;
+    status?: ContentItem["status"];
+    caption?: string | null;
+    scheduledFor?: Date | null;
+    autoApproved?: boolean;
+  }
+): Promise<ContentItem> {
+  return prisma.contentItem.create({
+    data: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      provider: params.provider ?? "INSTAGRAM",
+      postType: params.postType ?? "IMAGE",
+      status: params.status ?? "DRAFT",
+      caption: params.caption ?? "Test caption",
+      scheduledFor: params.scheduledFor ?? null,
+      autoApproved: params.autoApproved ?? false
+    }
+  });
+}
+
+export async function createTestContentMediaAsset(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    contentItemId: string;
+    order?: number;
+    kind?: MediaAssetKind;
+    storageKey?: string;
+    mimeType?: string;
+  }
+): Promise<ContentMediaAsset> {
+  return prisma.contentMediaAsset.create({
+    data: {
+      organizationId: params.organizationId,
+      contentItemId: params.contentItemId,
+      order: params.order ?? 0,
+      kind: params.kind ?? "IMAGE",
+      storageKey: params.storageKey ?? `orgs/${params.organizationId}/content/${randomUUID()}.jpg`,
+      mimeType: params.mimeType ?? "image/jpeg"
     }
   });
 }

@@ -61,3 +61,20 @@ export interface EmbeddingResult {
 export interface EmbeddingProvider {
   embed(texts: string[], inputType: EmbeddingInputType): Promise<EmbeddingResult>;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6: AI image editing (e.g. turning an uploaded product photo into a
+// marketing banner). A separate interface from AIProvider rather than an
+// extension of it - different media type, different provider family
+// (Claude does not generate/edit images), no shared method shape worth
+// unifying. See docs/adr/0007-content-publishing-provider-and-media-design.md.
+// ---------------------------------------------------------------------------
+
+export interface ImageEditResult {
+  data: Buffer;
+  mimeType: string;
+}
+
+export interface ImageEditProvider {
+  edit(image: Buffer, mimeType: string, instruction: string): Promise<ImageEditResult>;
+}

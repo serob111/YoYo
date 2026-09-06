@@ -4,13 +4,20 @@ import { AuditModule } from "../audit/audit.module";
 import { TenantGuardsModule } from "../common/tenant-guards.module";
 import { OAuthStateService } from "./oauth-state.service";
 import { InstagramProviderFactory } from "./instagram-provider.factory";
+import { TikTokProviderFactory } from "./tiktok-provider.factory";
 import { ConnectedAccountsService } from "./connected-accounts.service";
-import { IntegrationsController, InstagramOAuthCallbackController, ConnectedAccountsController } from "./integrations.controller";
+import {
+  IntegrationsController,
+  InstagramOAuthCallbackController,
+  TikTokIntegrationsController,
+  TikTokOAuthCallbackController,
+  ConnectedAccountsController
+} from "./integrations.controller";
 
 @Module({
   imports: [AuthModule, AuditModule, TenantGuardsModule],
-  controllers: [IntegrationsController, InstagramOAuthCallbackController, ConnectedAccountsController],
-  providers: [OAuthStateService, InstagramProviderFactory, ConnectedAccountsService],
-  exports: [ConnectedAccountsService, InstagramProviderFactory]
+  controllers: [IntegrationsController, InstagramOAuthCallbackController, TikTokIntegrationsController, TikTokOAuthCallbackController, ConnectedAccountsController],
+  providers: [OAuthStateService, InstagramProviderFactory, TikTokProviderFactory, ConnectedAccountsService],
+  exports: [ConnectedAccountsService, InstagramProviderFactory, TikTokProviderFactory]
 })
 export class IntegrationsModule {}

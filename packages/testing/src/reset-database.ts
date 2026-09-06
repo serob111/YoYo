@@ -2,6 +2,8 @@ import type { PrismaClient } from "@yoyo/database";
 
 // Order matters: children before parents. Extend this list as new tenant tables are added.
 const TABLES_IN_DELETE_ORDER = [
+  "content_media_assets",
+  "content_items",
   "follow_ups",
   "automation_executions",
   "automations",

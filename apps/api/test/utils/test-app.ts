@@ -35,3 +35,27 @@ export async function resetTestRedis(app: INestApplication): Promise<void> {
 export function getPrisma(app: INestApplication) {
   return app.get(PrismaService).client;
 }
+
+/**
+ * Creates the test S3_BUCKET on the test MinIO container if it doesn't
+ * already exist - MinIO doesn't auto-create buckets, unlike Postgres schemas
+ * which migrate deterministically. Call once per test file that exercises
+ * MediaModule/ContentModule (idempotent - safe to call from multiple files).
+ */
+export async function ensureTestBucket(): Promise<void> {
+  const { S3Client, CreateBucketCommand } = await import("@aws-sdk/client-s3");
+  const client = new S3Client({
+    endpoint: process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION,
+    forcePathStyle: true,
+    credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID!, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY! }
+  });
+  try {
+    await client.send(new CreateBucketCommand({ Bucket: process.env.S3_BUCKET! }));
+  } catch (error) {
+    const code = (error as { name?: string }).name;
+    if (code !== "BucketAlreadyOwnedByYou" && code !== "BucketAlreadyExists") {
+      throw error;
+    }
+  }
+}

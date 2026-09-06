@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { TokenEncryptionService } from "@yoyo/crypto";
+import type { Provider } from "@yoyo/database";
 import type { ProviderCapabilities, ProviderProfile, TokenSet } from "@yoyo/integrations";
 import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotFoundDomainError } from "../common/domain-errors";
 import { InstagramProviderFactory } from "./instagram-provider.factory";
+import { TikTokProviderFactory } from "./tiktok-provider.factory";
 
 @Injectable()
 export class ConnectedAccountsService {
@@ -12,32 +14,35 @@ export class ConnectedAccountsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly tokenEncryption: TokenEncryptionService,
-    private readonly instagramProviderFactory: InstagramProviderFactory
+    private readonly instagramProviderFactory: InstagramProviderFactory,
+    private readonly tiktokProviderFactory: TikTokProviderFactory
   ) {}
 
   async upsertFromOAuth(
     organizationId: string,
     actorId: string,
+    provider: Provider,
     profile: ProviderProfile,
     tokens: TokenSet,
-    capabilities: ProviderCapabilities
+    capabilities: ProviderCapabilities,
+    providerMetadata: Record<string, unknown> = {}
   ) {
     const encryptedAccessToken = this.tokenEncryption.encrypt(tokens.accessToken);
 
     const existing = await this.prisma.client.connectedAccount.findUnique({
-      where: { provider_externalAccountId: { provider: "INSTAGRAM", externalAccountId: profile.externalAccountId } }
+      where: { provider_externalAccountId: { provider, externalAccountId: profile.externalAccountId } }
     });
 
     if (existing && existing.organizationId !== organizationId) {
       // This external account is already connected to a DIFFERENT organization.
       // Per docs/architecture/tenant-model.md, one external account maps to
       // exactly one org - refuse rather than silently reassigning ownership.
-      throw new NotFoundDomainError("Instagram account is already connected to another organization and cannot be connected here. Contact support");
+      throw new NotFoundDomainError(`${provider} account is already connected to another organization and cannot be connected here. Contact support`);
     }
 
     const data = {
       organizationId,
-      provider: "INSTAGRAM" as const,
+      provider,
       externalAccountId: profile.externalAccountId,
       displayName: profile.displayName,
       username: profile.username,
@@ -48,6 +53,7 @@ export class ConnectedAccountsService {
       tokenExpiresAt: tokens.expiresAt,
       grantedScopes: tokens.scopes,
       capabilities: capabilities as unknown as object,
+      providerMetadata: providerMetadata as object,
       lastSyncAt: new Date()
     };
 
@@ -63,7 +69,7 @@ export class ConnectedAccountsService {
           action: existing ? "integration.reconnected" : "integration.connected",
           entityType: "ConnectedAccount",
           entityId: saved.id,
-          metadata: { provider: "INSTAGRAM", username: profile.username }
+          metadata: { provider, username: profile.username }
         },
         tx
       );
@@ -88,7 +94,7 @@ export class ConnectedAccountsService {
     }
 
     try {
-      const provider = this.instagramProviderFactory.create();
+      const provider = account.provider === "TIKTOK" ? this.tiktokProviderFactory.create() : this.instagramProviderFactory.create();
       await provider.revokeAccess({ externalAccountId: account.externalAccountId, accessToken: this.tokenEncryption.decrypt(account.encryptedAccessToken) });
     } catch {
       // Best-effort; proceed to mark disconnected in our own system regardless.

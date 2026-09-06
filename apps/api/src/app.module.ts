@@ -26,6 +26,8 @@ import { TasksModule } from "./tasks/tasks.module";
 import { TagsModule } from "./tags/tags.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { AutomationsModule } from "./automations/automations.module";
+import { MediaModule } from "./media/media.module";
+import { ContentModule } from "./content/content.module";
 
 @Module({
   imports: [
@@ -52,7 +54,9 @@ import { AutomationsModule } from "./automations/automations.module";
     TasksModule,
     TagsModule,
     FollowUpsModule,
-    AutomationsModule
+    AutomationsModule,
+    MediaModule,
+    ContentModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })

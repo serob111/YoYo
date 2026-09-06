@@ -65,9 +65,31 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # NOTE: GitHub Actions service containers can't override the image's
+      # command (unlike docker-compose's `command:`), so this relies on
+      # bitnami/minio's default CMD already running `minio server` - verify
+      # this starts cleanly the first time CI actually runs it; if not, swap
+      # to a docker run/act step instead of a `services:` entry.
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: yoyo
+          MINIO_ROOT_PASSWORD: yoyo12345
+        ports: ["9002:9000"]
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://yoyo:yoyo@localhost:5433/yoyo_test
       REDIS_URL: redis://localhost:6380
+      S3_ENDPOINT: http://localhost:9002
+      S3_REGION: us-east-1
+      S3_BUCKET: yoyo-test
+      S3_ACCESS_KEY_ID: yoyo
+      S3_SECRET_ACCESS_KEY: yoyo12345
+      S3_FORCE_PATH_STYLE: "true"
     steps:
       - uses: actions/checkout@v4
 

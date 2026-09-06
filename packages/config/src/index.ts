@@ -50,7 +50,16 @@ export const apiEnvSchema = z.object({
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v23.0"),
   META_OAUTH_REDIRECT_URI: z.string().url().optional(),
-  ENCRYPTION_KEY: z.string().min(1, "ENCRYPTION_KEY is required")
+  ENCRYPTION_KEY: z.string().min(1, "ENCRYPTION_KEY is required"),
+
+  // --- TikTok (Phase 6) ---
+  // Same "app boots without these, only the OAuth routes need them" pattern
+  // as META_* above - lets local dev proceed before a real TikTok app exists.
+  TIKTOK_CLIENT_KEY: z.string().optional(),
+  TIKTOK_CLIENT_SECRET: z.string().optional(),
+  TIKTOK_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  // Local-stub override for manual testing, like META_GRAPH_BASE_URL below.
+  TIKTOK_API_BASE_URL: z.string().url().optional()
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -136,6 +145,47 @@ export const automationsWorkerEnvSchema = coreWorkerEnvSchema;
 export type AutomationsWorkerEnv = z.infer<typeof automationsWorkerEnvSchema>;
 export function loadAutomationsWorkerEnv(source: NodeJS.ProcessEnv = process.env): AutomationsWorkerEnv {
   return loadWith(automationsWorkerEnvSchema, source);
+}
+
+// worker-content: caption generation (Claude, via @yoyo/ai) and optional AI
+// image enhancement (Gemini) - the only two apps/workers holding
+// GEMINI_API_KEY (same credential-isolation convention as ANTHROPIC_API_KEY
+// being worker-ai-only). Needs S3_* to read/write raw image bytes for Gemini.
+export const contentWorkerEnvSchema = coreWorkerEnvSchema.extend({
+  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
+  GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
+  GEMINI_IMAGE_MODEL: z.string().default("gemini-3-pro-image"),
+  AI_DEFAULT_MODEL: z.string().default("claude-sonnet-5"),
+  S3_ENDPOINT: apiEnvSchema.shape.S3_ENDPOINT,
+  S3_REGION: apiEnvSchema.shape.S3_REGION,
+  S3_BUCKET: apiEnvSchema.shape.S3_BUCKET,
+  S3_ACCESS_KEY_ID: apiEnvSchema.shape.S3_ACCESS_KEY_ID,
+  S3_SECRET_ACCESS_KEY: apiEnvSchema.shape.S3_SECRET_ACCESS_KEY,
+  S3_FORCE_PATH_STYLE: apiEnvSchema.shape.S3_FORCE_PATH_STYLE
+});
+export type ContentWorkerEnv = z.infer<typeof contentWorkerEnvSchema>;
+export function loadContentWorkerEnv(source: NodeJS.ProcessEnv = process.env): ContentWorkerEnv {
+  return loadWith(contentWorkerEnvSchema, source);
+}
+
+// worker-publishing: calls the real Instagram/TikTok publish APIs - needs
+// ENCRYPTION_KEY to decrypt ConnectedAccount tokens (same as worker-messaging)
+// and S3_* to read media bytes / build presigned download URLs.
+export const publishingWorkerEnvSchema = coreWorkerEnvSchema.extend({
+  ENCRYPTION_KEY: apiEnvSchema.shape.ENCRYPTION_KEY,
+  META_GRAPH_API_VERSION: apiEnvSchema.shape.META_GRAPH_API_VERSION,
+  META_GRAPH_BASE_URL: z.string().url().optional(),
+  TIKTOK_API_BASE_URL: apiEnvSchema.shape.TIKTOK_API_BASE_URL,
+  S3_ENDPOINT: apiEnvSchema.shape.S3_ENDPOINT,
+  S3_REGION: apiEnvSchema.shape.S3_REGION,
+  S3_BUCKET: apiEnvSchema.shape.S3_BUCKET,
+  S3_ACCESS_KEY_ID: apiEnvSchema.shape.S3_ACCESS_KEY_ID,
+  S3_SECRET_ACCESS_KEY: apiEnvSchema.shape.S3_SECRET_ACCESS_KEY,
+  S3_FORCE_PATH_STYLE: apiEnvSchema.shape.S3_FORCE_PATH_STYLE
+});
+export type PublishingWorkerEnv = z.infer<typeof publishingWorkerEnvSchema>;
+export function loadPublishingWorkerEnv(source: NodeJS.ProcessEnv = process.env): PublishingWorkerEnv {
+  return loadWith(publishingWorkerEnvSchema, source);
 }
 
 export const webEnvSchema = z.object({

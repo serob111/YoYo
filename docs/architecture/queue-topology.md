@@ -4,7 +4,7 @@
 
 Phase 1's async workload is one email queue. Even the full target workload (webhooks, messaging, AI, publishing, automations) is job-shaped — "do this discrete unit of work, retry with backoff on failure, dead-letter after N attempts" — not a log-streaming/event-sourcing workload. BullMQ on Redis (already required for caching/rate-limiting/sessions-adjacent needs) covers this without operating a second distributed system. Kafka becomes worth its operational cost only if a measured requirement shows up (e.g. needing multiple independent consumer groups replaying the same event stream) — see `docs/adr/0003-bullmq-for-queues.md`.
 
-## Implemented queues (Phases 1-5)
+## Implemented queues (Phases 1-6)
 
 | Queue | Producer | Consumer | Purpose |
 |---|---|---|---|
@@ -15,15 +15,15 @@ Phase 1's async workload is one email queue. Even the full target workload (webh
 | `knowledge-embeddings` | API (`KnowledgeModule`, via outbox) | `worker-ai` | Compute a knowledge chunk's embedding |
 | `automations` | API (`LeadsModule`, via outbox) / `worker-ai` (via inlined outbox row) | `worker-automations` | Fire matching `Automation` rows for a `lead.created`/`lead.stage_changed` event |
 | `follow-ups` | API (`FollowUpDispatcherService`, polling `FollowUp.scheduledFor`) | `worker-automations` | Execute one due `FollowUp`'s action |
+| `content-generation` | API (`ContentModule`, via outbox) | `worker-content` | Generate a caption (Claude) or enhance a photo (Gemini) for a `ContentItem`/`ContentMediaAsset` |
+| `publishing` | API (`ContentDispatcherService`, polling `ContentItem.scheduledFor`) | `worker-publishing` | Publish one due, `APPROVED` `ContentItem` to Instagram/TikTok |
 
-(`inbound-messages` and `ai`/`knowledge-ingestion` from the original target names were superseded by `webhook-events`→`ai-responses` and `knowledge-embeddings` respectively once actually implemented - renamed here to match reality.)
+(`inbound-messages` and `ai`/`knowledge-ingestion` from the original target names were superseded by `webhook-events`→`ai-responses` and `knowledge-embeddings` respectively once actually implemented - renamed here to match reality. The originally-planned `media` queue/`worker-media` was folded into `content-generation`/`worker-content` instead - raw media upload/serving is a synchronous `MediaModule` concern via presigned URLs, not a queue-driven one; only AI-driven photo enhancement is async.)
 
 ## Target queue map (later phases, not implemented yet)
 
 | Queue | Consumer worker | Introduced in |
 |---|---|---|
-| `publishing` | `worker-publishing` | Phase 6 |
-| `media` | `worker-media` | Phase 6 |
 | `analytics` | `worker-automations` (or dedicated later if volume justifies) | Phase 6+ |
 | `billing` | shared with API-triggered reconciliation jobs | Phase 7 |
 | `notifications` | may fold into `email` worker or split when channels beyond email exist | Phase 7+ |

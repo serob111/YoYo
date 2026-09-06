@@ -7,7 +7,9 @@ export type OutboxEventType =
   | "message.inbound_received"
   | "knowledge_chunk.embedding_pending"
   | "lead.created"
-  | "lead.stage_changed";
+  | "lead.stage_changed"
+  | "content.caption_generation_requested"
+  | "content.image_enhancement_requested";
 
 export interface RecordOutboxEventInput {
   organizationId?: string;

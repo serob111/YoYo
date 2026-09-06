@@ -3,11 +3,14 @@ import type { Redis } from "ioredis";
 import {
   createAiResponsesQueue,
   createAutomationsQueue,
+  createContentGenerationQueue,
   createKnowledgeEmbeddingsQueue,
   createOutboundMessagesQueue,
   createWebhookEventsQueue,
   enqueueAiResponse,
   enqueueAutomationTrigger,
+  enqueueCaptionGeneration,
+  enqueueImageEnhancement,
   enqueueKnowledgeEmbedding,
   enqueueOutboundMessage,
   enqueueWebhookEvent
@@ -44,6 +47,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly aiResponsesQueue;
   private readonly knowledgeEmbeddingsQueue;
   private readonly automationsQueue;
+  private readonly contentGenerationQueue;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -54,6 +58,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     this.aiResponsesQueue = createAiResponsesQueue(redis);
     this.knowledgeEmbeddingsQueue = createKnowledgeEmbeddingsQueue(redis);
     this.automationsQueue = createAutomationsQueue(redis);
+    this.contentGenerationQueue = createContentGenerationQueue(redis);
   }
 
   onModuleInit(): void {
@@ -67,6 +72,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     await this.aiResponsesQueue.close();
     await this.knowledgeEmbeddingsQueue.close();
     await this.automationsQueue.close();
+    await this.contentGenerationQueue.close();
   }
 
   /** Test-only: stop the automatic interval so tests can drive `tick()` deterministically. */
@@ -137,6 +143,21 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
           organizationId: row.organizationId,
           leadId: row.aggregateId,
           payload: row.payload,
+          requestId
+        });
+        return;
+      case "content.caption_generation_requested":
+        await enqueueCaptionGeneration(this.contentGenerationQueue, {
+          contentItemId: row.aggregateId,
+          instruction: row.payload.instruction as string | undefined,
+          requestId
+        });
+        return;
+      case "content.image_enhancement_requested":
+        await enqueueImageEnhancement(this.contentGenerationQueue, {
+          contentItemId: row.payload.contentItemId as string,
+          mediaAssetId: row.aggregateId,
+          instruction: row.payload.instruction as string,
           requestId
         });
         return;

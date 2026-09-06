@@ -39,11 +39,13 @@ Owns the event-driven automation engine and the durable follow-up scheduler. `Au
 
 - `AutomationsModule`, `FollowUpsModule`
 
-## Content & Publishing (Phase 6 — designed, not implemented)
+## Content & Publishing (Phase 6 — implemented)
 
-Owns content generation, the approval workflow, scheduling, and publishing to Instagram/TikTok through the provider abstraction (`docs/architecture/provider-abstraction.md`).
+Owns content generation, the approval workflow, scheduling, and publishing to Instagram/TikTok through the provider abstraction (`docs/architecture/provider-abstraction.md`). `ContentModule` covers CRUD, generation requests, and the approval workflow (submit/approve/reject/cancel/reschedule); `MediaModule` is a thin synchronous wrapper over presigned S3/MinIO URLs (`packages/storage`), since presigning is a pure local computation with no external call. A `PublishingModule`-equivalent doesn't exist as a separate module - publishing is `ContentDispatcherService` (time-polled, mirrors Phase 5's `FollowUpDispatcherService`) plus `apps/worker-publishing`. `ContentCalendarModule` from the original forward-look wasn't built - one flat per-org `ContentItem` list was sufficient this phase.
 
-- `ContentModule`, `PublishingModule`, `MediaModule`, `ContentCalendarModule`
+- `ContentModule`, `MediaModule`
+- `apps/worker-content` (caption generation via Claude, optional AI photo enhancement via Gemini - `packages/ai`'s new `ImageEditProvider`)
+- `apps/worker-publishing` (real Instagram/TikTok publish calls via `packages/integrations`'s new `PublishingProvider`)
 
 ## Billing (Phase 7 — designed, not implemented)
 

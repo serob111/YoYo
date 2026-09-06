@@ -62,6 +62,9 @@ model User {
   assignedTasks        Task[]
   loggedActivities     Activity[]
   createdFollowUps     FollowUp[]
+  createdContentItems  ContentItem[]      @relation("ContentCreatedBy")
+  approvedContentItems ContentItem[]      @relation("ContentApprovedBy")
+  rejectedContentItems ContentItem[]      @relation("ContentRejectedBy")
 
   @@map("users")
 }
@@ -128,6 +131,8 @@ model Organization {
   followUps         FollowUp[]
   automations       Automation[]
   automationExecutions AutomationExecution[]
+  contentItems       ContentItem[]
+  contentMediaAssets ContentMediaAsset[]
 
   @@map("organizations")
 }
@@ -176,6 +181,7 @@ model AuditLog {
 
 enum Provider {
   INSTAGRAM
+  TIKTOK
 }
 
 enum ConnectedAccountStatus {
@@ -270,6 +276,7 @@ model ConnectedAccount {
   contactIdentities ContactIdentity[]
   conversations  Conversation[]
   messages       Message[]
+  contentItems   ContentItem[]
 
   // Global, not per-org: this is the trust boundary inbound webhooks resolve
   // organizationId through. One external account can only ever belong to one org.
@@ -448,6 +455,10 @@ model BusinessProfile {
   defaultModel   String?
   // Null = no cap. Enforced in apps/worker-ai against summed AiResponse.costCents.
   monthlyCostCapCents Int?
+  // Phase 6: when true, ContentItem.submit() skips PENDING_APPROVAL and goes
+  // straight to APPROVED (audited via an AuditLog "content.auto_approved"/
+  // "content.auto_published" row) - opt-in, default off.
+  autoPublishEnabled Boolean @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -816,4 +827,151 @@ model AutomationExecution {
 
   @@unique([automationId, triggerEventId])
   @@map("automation_executions")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: Content & Publishing. See docs/architecture/provider-abstraction.md
+// and docs/adr/0007-content-publishing-provider-and-media-design.md for the
+// design this implements.
+//
+// ContentItem.status state machine:
+//   DRAFT --generate-caption--> GENERATING --success--> DRAFT
+//                                          \--failure--> GENERATION_FAILED
+//   DRAFT / GENERATION_FAILED --submit--> PENDING_APPROVAL
+//     (or straight to APPROVED if BusinessProfile.autoPublishEnabled - see
+//     autoApproved below)
+//   PENDING_APPROVAL --approve--> APPROVED
+//   PENDING_APPROVAL --reject--> REJECTED (terminal)
+//   APPROVED --dispatcher claims (scheduledFor<=now)--> PUBLISHING
+//   PUBLISHING --success--> PUBLISHED (terminal)
+//   PUBLISHING --RETRYABLE provider failure--> APPROVED (BullMQ retries)
+//   PUBLISHING --NON_RETRYABLE/ACTION_REQUIRED/REQUIRES_RECONCILIATION--> PUBLISH_FAILED (terminal)
+//   DRAFT / PENDING_APPROVAL / APPROVED --cancel--> CANCELLED (terminal)
+//
+// No separate "SCHEDULED" status: scheduledFor is nullable-then-defaulted at
+// approval time (null = ASAP), exactly mirroring FollowUp.scheduledFor from
+// Phase 5 - the dispatcher polls status='APPROVED' AND scheduledFor <= now().
+// ---------------------------------------------------------------------------
+
+enum ContentPostType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+}
+
+enum ContentItemStatus {
+  DRAFT
+  GENERATING
+  GENERATION_FAILED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  // Atomic claim state (APPROVED -> PUBLISHING via updateMany), mirrors
+  // Message's PENDING -> SENDING claim - this is the duplicate-publish
+  // prevention exit criterion. Reverted to APPROVED on a RETRYABLE provider
+  // failure so the next dispatch attempt can re-claim it.
+  PUBLISHING
+  PUBLISHED
+  PUBLISH_FAILED
+  CANCELLED
+}
+
+enum MediaAssetKind {
+  IMAGE
+  VIDEO
+}
+
+enum MediaAssetStatus {
+  UPLOADED
+  ENHANCING
+  ENHANCED
+  ENHANCEMENT_FAILED
+}
+
+model ContentItem {
+  id                 String            @id @default(uuid())
+  organizationId     String
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId String
+  connectedAccount   ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  // Denormalized off connectedAccount - avoids a join for dispatch routing,
+  // same reasoning as Message.provider / ContactIdentity.provider.
+  provider           Provider
+  postType           ContentPostType
+  caption            String?           @db.Text
+  // The instruction that seeded the last AI caption generation, if any - kept
+  // for "regenerate" and for audit ("what did we ask the model").
+  captionPrompt      String?
+  generationError    String?
+  status             ContentItemStatus @default(DRAFT)
+  // Null = publish ASAP once approved (defaulted to now() at approval time,
+  // never left null past APPROVED) - mirrors FollowUp.scheduledFor.
+  scheduledFor       DateTime?
+  // True when approval was skipped because BusinessProfile.autoPublishEnabled
+  // was on at submit time - drives the "content.auto_approved"/
+  // "content.auto_published" AuditLog rows.
+  autoApproved       Boolean           @default(false)
+  submittedForApprovalAt DateTime?
+  approvedAt         DateTime?
+  approvedByUserId   String?
+  approvedByUser     User?             @relation("ContentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  rejectedAt         DateTime?
+  rejectedByUserId   String?
+  rejectedByUser     User?             @relation("ContentRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  rejectionReason    String?
+  createdByUserId    String?
+  createdByUser      User?             @relation("ContentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  // Best-effort debugging/audit trail of provider-side container/publish ids -
+  // NOT used for crash-resumption. A retried publish re-runs the whole
+  // provider call rather than resuming a partial container; both Instagram
+  // and TikTok auto-expire orphaned unpublished containers on their own.
+  providerContainerId String?
+  providerPostId      String?
+  publishAttemptCount Int      @default(0)
+  publishErrorMessage String?
+  // e.g. { requiresReconciliation: true } - mirrors Message.metadata.
+  metadata             Json     @default("{}")
+  publishedAt          DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  media ContentMediaAsset[]
+
+  @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("content_items")
+}
+
+// Carousel ordering is modeled purely through @@unique([contentItemId, order])
+// - no join table, since an asset belongs to exactly one ContentItem (not
+// reused across items, unlike LeadTag's genuine many-to-many). Single
+// image/video items are just carousels of size 1 in the data model.
+model ContentMediaAsset {
+  id                 String            @id @default(uuid())
+  organizationId     String
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contentItemId      String
+  contentItem        ContentItem       @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  // 0-based; IMAGE/VIDEO items always have exactly one asset at order 0,
+  // CAROUSEL items have 2-10 ordered assets (validated by ContentService, not
+  // the DB - Instagram's own carousel child cap).
+  order              Int
+  kind               MediaAssetKind
+  // S3 key of the asset actually used for publishing - if enhanced, this is
+  // the enhanced output, not the original upload.
+  storageKey         String
+  // Set only when this asset went through Gemini enhancement - preserves the
+  // pre-enhancement upload for audit / "revert to original."
+  originalStorageKey String?
+  mimeType           String
+  byteSize           Int?
+  status             MediaAssetStatus  @default(UPLOADED)
+  enhancementPrompt  String?
+  enhancementError   String?
+  createdAt          DateTime          @default(now())
+
+  @@unique([contentItemId, order])
+  @@index([organizationId])
+  @@map("content_media_assets")
 }

@@ -3,3 +3,4 @@ export * from "./email-queue";
 export * from "./messaging-queues";
 export * from "./ai-queues";
 export * from "./automation-queues";
+export * from "./content-queues";

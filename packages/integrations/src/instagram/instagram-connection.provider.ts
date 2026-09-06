@@ -2,9 +2,9 @@ import type { SocialConnectionProvider, TokenSet, ProviderProfile, ConnectedAcco
 import { resolveInstagramCapabilities } from "./capabilities";
 import { DEFAULT_CONFIG, graphRequest, type InstagramHttpConfig } from "./http";
 
-// Least-privilege: request only what Phase 2 (messaging) needs. Content
-// publishing / comments scopes are added when those phases land.
-export const INSTAGRAM_OAUTH_SCOPES = ["instagram_business_basic", "instagram_business_manage_messages"];
+// Least-privilege: messaging (Phase 2) + content publishing (Phase 6).
+// Comments scope is added if/when a phase needs it.
+export const INSTAGRAM_OAUTH_SCOPES = ["instagram_business_basic", "instagram_business_manage_messages", "instagram_business_content_publish"];
 
 interface ShortLivedTokenResponse {
   access_token: string;

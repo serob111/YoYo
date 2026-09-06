@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
+    "@google/genai": "^0.3.0",
+    "@yoyo/integrations": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {
