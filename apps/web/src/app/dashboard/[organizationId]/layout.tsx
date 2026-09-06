@@ -37,7 +37,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </select>
         <nav className="flex flex-col gap-2 text-sm">
           <Link href={`/dashboard/${params.organizationId}`}>Dashboard</Link>
+          <Link href={`/dashboard/${params.organizationId}/inbox`}>Inbox</Link>
           <Link href={`/dashboard/${params.organizationId}/settings/members`}>Members</Link>
+          <Link href={`/dashboard/${params.organizationId}/settings/integrations`}>Integrations</Link>
         </nav>
         <div className="mt-auto text-xs text-slate-500">
           {user && <p className="mb-2">{user.email}</p>}

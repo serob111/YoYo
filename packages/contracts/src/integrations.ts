@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const connectedAccountStatusSchema = z.enum(["CONNECTED", "ACTION_REQUIRED", "TOKEN_EXPIRED", "DISCONNECTED", "ERROR"]);
+export type ConnectedAccountStatus = z.infer<typeof connectedAccountStatusSchema>;
 
 export const providerCapabilitiesSchema = z.object({
   oauth: z.boolean(),
@@ -20,7 +21,7 @@ export const providerCapabilitiesSchema = z.object({
 
 export const connectedAccountSchema = z.object({
   id: z.string().uuid(),
-  provider: z.literal("INSTAGRAM"),
+  provider: z.enum(["INSTAGRAM", "TIKTOK"]),
   status: connectedAccountStatusSchema,
   username: z.string().nullable(),
   displayName: z.string().nullable(),

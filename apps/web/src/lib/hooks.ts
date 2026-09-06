@@ -16,3 +16,10 @@ export function useMyOrganizations() {
     queryFn: () => apiRequest<Organization[]>("/organizations")
   });
 }
+
+export function useOrganization(organizationId: string) {
+  return useQuery<Organization>({
+    queryKey: ["organizations", organizationId],
+    queryFn: () => apiRequest<Organization>(`/organizations/${organizationId}`)
+  });
+}

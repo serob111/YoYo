@@ -1,13 +1,14 @@
 import { z } from "zod";
 
 export const conversationAutomationStateSchema = z.enum(["AI_ACTIVE", "HUMAN_ACTIVE", "PAUSED", "CLOSED"]);
+export type ConversationAutomationState = z.infer<typeof conversationAutomationStateSchema>;
 
 export const conversationSchema = z.object({
   id: z.string().uuid(),
   contactId: z.string().uuid(),
   contactDisplayName: z.string(),
   connectedAccountId: z.string().uuid(),
-  provider: z.literal("INSTAGRAM"),
+  provider: z.enum(["INSTAGRAM", "TIKTOK"]),
   assignedUserId: z.string().uuid().nullable(),
   automationState: conversationAutomationStateSchema,
   lastMessageAt: z.string().datetime().nullable(),
