@@ -56,7 +56,10 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    # minio/minio is no longer published to Docker Hub (MinIO Inc moved
+    # distribution to quay.io) - pinned to a real tag since quay.io doesn't
+    # publish a floating "latest" for the server image either.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -74,7 +77,9 @@ services:
   # never auto-creates buckets (see packages/storage) - this replaces what
   # would otherwise be a manual one-time setup step.
   minio-init:
-    image: minio/mc:latest
+    # Same registry move as the minio service above - quay.io does still
+    # publish a floating "latest" for the mc client, unlike the server image.
+    image: quay.io/minio/mc:latest
     restart: "no"
     depends_on:
       minio:
@@ -83,10 +88,13 @@ services:
       S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      WEB_APP_URL: ${WEB_APP_URL:?WEB_APP_URL is required}
     entrypoint: >
       sh -c "
       mc alias set local http://minio:9000 $$S3_ACCESS_KEY_ID $$S3_SECRET_ACCESS_KEY &&
-      mc mb --ignore-existing local/$$S3_BUCKET
+      mc mb --ignore-existing local/$$S3_BUCKET &&
+      printf '%s' '<CORSConfiguration><CORSRule><AllowedOrigin>'\"$$WEB_APP_URL\"'</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedHeader>*</AllowedHeader></CORSRule></CORSConfiguration>' > /tmp/cors.xml &&
+      (mc cors set local/$$S3_BUCKET /tmp/cors.xml || echo 'WARNING: this MinIO build does not support PutBucketCors - browser-based uploads will be blocked by CORS until this is set some other way (e.g. a real S3/R2 provider, or a MinIO version that supports it)')
       "
 
   caddy:
@@ -98,6 +106,7 @@ services:
     environment:
       WEB_HOST: ${WEB_HOST:?WEB_HOST is required}
       API_HOST: ${API_HOST:?API_HOST is required}
+      STORAGE_HOST: ${STORAGE_HOST:?STORAGE_HOST is required}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

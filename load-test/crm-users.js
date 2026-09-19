@@ -39,8 +39,21 @@ function credentialsForVu() {
   return { email: `org${orgIndex}-user${userInOrg}@loadtest.yoyo.internal`, password: PASSWORD };
 }
 
+let hasStaggeredStart = false;
+
 function ensureLoggedIn() {
   if (organizationId) return;
+
+  // Real users don't all open the dashboard in the same millisecond - and
+  // AuthRateLimitGuard is keyed by IP, so every k6 VU (all sharing this one
+  // machine's IP) logging in at t=0 looks identical to a brute-force burst
+  // from a single attacker and gets 429'd past RATE_LIMIT_AUTH_MAX_ATTEMPTS.
+  // Spreading logins over ~20s avoids that test artifact without touching
+  // the rate limiter itself.
+  if (!hasStaggeredStart) {
+    hasStaggeredStart = true;
+    sleep(Math.random() * 20);
+  }
 
   const { email, password } = credentialsForVu();
   const loginRes = http.post(`${API_BASE_URL}/auth/login`, JSON.stringify({ email, password }), {
@@ -57,7 +70,14 @@ function ensureLoggedIn() {
 
 export default function () {
   ensureLoggedIn();
-  if (!organizationId) return;
+  if (!organizationId) {
+    // Don't retry-storm on a failed login (e.g. a transient 429) - that would
+    // just generate more login attempts from this same shared test IP and
+    // keep tripping the per-IP rate limiter for every other VU too. Back off
+    // for a normal poll interval and try again next iteration.
+    sleep(8 + Math.random() * 2);
+    return;
+  }
 
   group("poll conversations", () => {
     const res = http.get(`${API_BASE_URL}/organizations/${organizationId}/conversations`, { tags: { name: "list_conversations" } });

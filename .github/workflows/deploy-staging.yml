@@ -1,0 +1,85 @@
+name: Deploy to Staging
+
+# Pushing to `stage` is the deploy trigger - merge/push whatever should go
+# live onto this branch. Builds happen here (GitHub-hosted runners), never on
+# the 4GB VPS - matches docker-compose.staging.yml's documented workflow,
+# just automated instead of run by hand via scripts/build-and-push.sh.
+on:
+  push:
+    branches: [stage]
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web, worker-webhooks, worker-messaging, worker-ai, worker-automations]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # GITHUB_TOKEN, not a PAT - scoped to this repo/run only, no secret to manage.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: |
+            APP_NAME=@yoyo/${{ matrix.app }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/yoyo-${{ matrix.app }}:latest
+            ghcr.io/${{ github.repository_owner }}/yoyo-${{ matrix.app }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Config files (compose, Caddyfile) ship on every deploy too - .env.staging
+      # is deliberately NOT in this list, it never leaves the VPS. This deploys
+      # the base compose file only (real providers) - the load-test overlay
+      # (docker-compose.staging.loadtest.yml, fake AI/Graph stub) is a manual,
+      # opt-in tool for load-testing sessions, not part of normal deploys.
+      - name: Sync deploy config to the server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          source: "docker-compose.staging.yml,Caddyfile"
+          target: "~/yoyo-staging/"
+          strip_components: 0
+
+      - name: Pull images, migrate, restart
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/yoyo-staging
+            docker compose -f docker-compose.staging.yml --env-file .env.staging pull
+            DATABASE_URL=$(grep -E '^DATABASE_URL=' .env.staging | cut -d= -f2-)
+            docker run --rm --network yoyo-staging_default -e DATABASE_URL="$DATABASE_URL" \
+              ghcr.io/${{ github.repository_owner }}/yoyo-api:${{ github.sha }} \
+              sh -c "cd packages/database && npx prisma migrate deploy"
+            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+            docker image prune -f

@@ -20,3 +20,4 @@ packages/database/prisma/migrations/**/migration.sql.bak
 !.vscode/extensions.json
 .claude/
 dont-read.md
+load-test/results/

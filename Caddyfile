@@ -1,7 +1,7 @@
-# Staging reverse proxy. WEB_HOST/API_HOST come from .env.staging - point
-# them at your sslip.io hostnames (e.g. web.203-0-113-10.sslip.io) or a real
-# domain later, nothing else here changes. Caddy requests/renews Let's
-# Encrypt certificates for both automatically.
+# Staging reverse proxy. WEB_HOST/API_HOST/STORAGE_HOST come from .env.staging
+# - point them at your sslip.io hostnames (e.g. web.203-0-113-10.sslip.io) or a
+# real domain later, nothing else here changes. Caddy requests/renews Let's
+# Encrypt certificates for all three automatically.
 
 {$WEB_HOST} {
 	reverse_proxy web:3000
@@ -10,5 +10,14 @@
 
 {$API_HOST} {
 	reverse_proxy api:4000
+	header X-Robots-Tag "noindex, nofollow"
+}
+
+# Presigned S3 upload/download URLs (see apps/api/src/media) embed S3_ENDPOINT
+# directly - it must be reachable by whatever client (browser, this staging's
+# k6 harness) receives the presigned URL, not just by other containers. Point
+# S3_ENDPOINT at this public host instead of the internal "http://minio:9000".
+{$STORAGE_HOST} {
+	reverse_proxy minio:9000
 	header X-Robots-Tag "noindex, nofollow"
 }
