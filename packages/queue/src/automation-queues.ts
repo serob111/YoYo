@@ -11,6 +11,11 @@ export interface AutomationTriggerJobData {
   leadId: string;
   payload: Record<string, unknown>;
   requestId: string;
+  // Distinct per (event, lead) pair when one outbox event can match multiple
+  // leads (e.g. a LISTING_MATCHED property.activated event matching several
+  // contacts' BuyerPreferences) - defaults to outboxEventId when omitted,
+  // which is already unique enough for the single-lead-per-event triggers.
+  triggerEventId?: string;
 }
 
 export interface FollowUpJobData {
@@ -36,8 +41,11 @@ export function createFollowUpsQueue(connection: Redis): Queue<FollowUpJobData> 
 // BullMQ rejects custom job IDs containing ':' (reserved for its own key
 // namespacing), so use '__' as the separator instead.
 export async function enqueueAutomationTrigger(queue: Queue<AutomationTriggerJobData>, data: AutomationTriggerJobData): Promise<void> {
-  // Idempotent by construction: jobId = the causing OutboxEvent's own id.
-  await queue.add("process", data, { ...DEFAULT_JOB_OPTIONS, jobId: `automation-trigger__${data.outboxEventId}` });
+  // Idempotent by construction: jobId = the causing OutboxEvent's id + the
+  // lead it's for. Including leadId matters because one outbox event (e.g. a
+  // LISTING_MATCHED property activation) can fan out to several leads - each
+  // needs its own job, not a single job that collides on retry/redispatch.
+  await queue.add("process", data, { ...DEFAULT_JOB_OPTIONS, jobId: `automation-trigger__${data.outboxEventId}__${data.leadId}` });
 }
 
 export async function enqueueFollowUp(queue: Queue<FollowUpJobData>, data: FollowUpJobData): Promise<void> {

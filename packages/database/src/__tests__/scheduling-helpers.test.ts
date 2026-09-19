@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveNextSendTime, type BusinessHours } from "../scheduling-helpers";
+import { generateViewingSlots, resolveNextSendTime, type BusinessHours } from "../scheduling-helpers";
 
 const NY = "America/New_York";
 const WEEKDAY_HOURS: BusinessHours = {
@@ -51,5 +51,88 @@ describe("resolveNextSendTime", () => {
   it("returns the requested time unchanged when the timezone is invalid", () => {
     const requestedAt = new Date(Date.UTC(2026, 8, 7, 11, 0));
     expect(resolveNextSendTime(requestedAt, "Not/A_Timezone", WEEKDAY_HOURS)).toEqual(requestedAt);
+  });
+});
+
+describe("generateViewingSlots", () => {
+  const now = new Date(Date.UTC(2026, 8, 7, 10, 0)); // Mon 06:00 EDT
+
+  it("generates hourly slots across the configured window", () => {
+    const slots = generateViewingSlots({
+      date: "2026-09-07", // Monday, 09:00-18:00 EDT
+      timezone: NY,
+      businessHours: WEEKDAY_HOURS,
+      slotMinutes: 60,
+      now,
+      bookedTimes: []
+    });
+    expect(slots).toHaveLength(9); // 09:00..17:00 start times
+    expect(slots[0]).toEqual(new Date(Date.UTC(2026, 8, 7, 13, 0))); // 09:00 EDT
+    expect(slots[slots.length - 1]).toEqual(new Date(Date.UTC(2026, 8, 7, 21, 0))); // 17:00 EDT
+  });
+
+  it("excludes slots already covered by a booked viewing", () => {
+    const booked = [new Date(Date.UTC(2026, 8, 7, 15, 0))]; // 11:00 EDT
+    const slots = generateViewingSlots({
+      date: "2026-09-07",
+      timezone: NY,
+      businessHours: WEEKDAY_HOURS,
+      slotMinutes: 60,
+      now,
+      bookedTimes: booked
+    });
+    expect(slots).not.toContainEqual(new Date(Date.UTC(2026, 8, 7, 15, 0)));
+    expect(slots).toHaveLength(8);
+  });
+
+  it("excludes slots that have already passed", () => {
+    const later = new Date(Date.UTC(2026, 8, 7, 17, 0)); // Mon 13:00 EDT
+    const slots = generateViewingSlots({
+      date: "2026-09-07",
+      timezone: NY,
+      businessHours: WEEKDAY_HOURS,
+      slotMinutes: 60,
+      now: later,
+      bookedTimes: []
+    });
+    expect(slots.every((s) => s.getTime() > later.getTime())).toBe(true);
+    expect(slots[0]).toEqual(new Date(Date.UTC(2026, 8, 7, 18, 0))); // 14:00 EDT
+  });
+
+  it("returns no slots on a day the business is closed", () => {
+    const slots = generateViewingSlots({
+      date: "2026-09-06", // Sunday
+      timezone: NY,
+      businessHours: WEEKDAY_HOURS,
+      slotMinutes: 60,
+      now,
+      bookedTimes: []
+    });
+    expect(slots).toEqual([]);
+  });
+
+  it("falls back to default viewing hours when businessHours is unset", () => {
+    const slots = generateViewingSlots({
+      date: "2026-09-07",
+      timezone: NY,
+      businessHours: null,
+      slotMinutes: 60,
+      now,
+      bookedTimes: []
+    });
+    expect(slots[0]).toEqual(new Date(Date.UTC(2026, 8, 7, 14, 0))); // default 10:00 EDT
+  });
+
+  it("falls back to UTC when the timezone is invalid", () => {
+    const earlyNow = new Date(Date.UTC(2026, 8, 7, 5, 0)); // well before 09:00 UTC
+    const slots = generateViewingSlots({
+      date: "2026-09-07",
+      timezone: "Not/A_Timezone",
+      businessHours: WEEKDAY_HOURS,
+      slotMinutes: 60,
+      now: earlyNow,
+      bookedTimes: []
+    });
+    expect(slots[0]).toEqual(new Date(Date.UTC(2026, 8, 7, 9, 0))); // 09:00 UTC
   });
 });

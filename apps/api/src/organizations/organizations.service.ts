@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { CreateOrganizationInput } from "@yoyo/contracts";
+import type { CreateOrganizationInput, UpdateOrganizationVerticalInput } from "@yoyo/contracts";
 import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotFoundDomainError } from "../common/domain-errors";
@@ -60,5 +60,44 @@ export class OrganizationsService {
       throw new NotFoundDomainError("Organization");
     }
     return { ...organization, myRole: role };
+  }
+
+  async getDashboardStats(organizationId: string) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [newLeadsThisWeek, overdueFollowUps, wonLeads, closedLeads, aiHandledConversations, humanHandledConversations] = await Promise.all([
+      this.prisma.client.lead.count({ where: { organizationId, createdAt: { gte: weekAgo } } }),
+      this.prisma.client.followUp.count({ where: { organizationId, status: "PENDING", scheduledFor: { lt: new Date() } } }),
+      this.prisma.client.lead.count({ where: { organizationId, closedAt: { not: null }, stage: { isWon: true } } }),
+      this.prisma.client.lead.count({ where: { organizationId, closedAt: { not: null } } }),
+      this.prisma.client.conversation.count({ where: { organizationId, automationState: "AI_ACTIVE" } }),
+      this.prisma.client.conversation.count({ where: { organizationId, automationState: "HUMAN_ACTIVE" } })
+    ]);
+
+    return {
+      newLeadsThisWeek,
+      overdueFollowUps,
+      conversionRate: closedLeads > 0 ? wonLeads / closedLeads : null,
+      aiHandledConversations,
+      humanHandledConversations
+    };
+  }
+
+  async updateVertical(organizationId: string, input: UpdateOrganizationVerticalInput, actorId: string) {
+    const organization = await this.prisma.client.organization.update({
+      where: { id: organizationId },
+      data: { vertical: input.vertical }
+    });
+
+    await this.audit.record({
+      organizationId,
+      actorId,
+      action: "organization.vertical_changed",
+      entityType: "Organization",
+      entityId: organizationId,
+      metadata: { vertical: input.vertical }
+    });
+
+    return organization;
   }
 }

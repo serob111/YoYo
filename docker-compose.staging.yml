@@ -1,0 +1,169 @@
+# Staging deployment - one VPS, everything self-hosted.
+#
+# Local iteration (build on this machine, matches earlier smoke-testing):
+#   docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+#
+# Real deploy (builds happen off the 4GB VPS - see scripts/build-and-push.sh):
+#   On your own machine: ./scripts/build-and-push.sh
+#   On the VPS:          docker compose -f docker-compose.staging.yml --env-file .env.staging pull
+#                         docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+#
+# See .env.staging.example for every variable referenced below.
+
+# Explicit project name so this never shares a network/volume namespace with
+# the local dev docker-compose.yml (which defaults to the same "yoyo" name
+# from the directory) - matters if this is ever run on the same host as dev,
+# e.g. for local smoke-testing before a real VPS deploy.
+name: yoyo-staging
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env.staging
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yoyo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-yoyo}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yoyo} -d ${POSTGRES_DB:-yoyo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: creates the S3 bucket if it doesn't exist yet, then exits. MinIO
+  # never auto-creates buckets (see packages/storage) - this replaces what
+  # would otherwise be a manual one-time setup step.
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 $$S3_ACCESS_KEY_ID $$S3_SECRET_ACCESS_KEY &&
+      mc mb --ignore-existing local/$$S3_BUCKET
+      "
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      WEB_HOST: ${WEB_HOST:?WEB_HOST is required}
+      API_HOST: ${API_HOST:?API_HOST is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - api
+
+  api:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/api"
+
+  web:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/web"
+    depends_on: []
+
+  worker-webhooks:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-worker-webhooks:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/worker-webhooks"
+
+  worker-messaging:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-worker-messaging:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/worker-messaging"
+
+  worker-ai:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-worker-ai:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/worker-ai"
+
+  worker-automations:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-worker-automations:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/worker-automations"
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  caddy-data:
+  caddy-config:

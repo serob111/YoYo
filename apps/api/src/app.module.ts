@@ -28,6 +28,10 @@ import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { AutomationsModule } from "./automations/automations.module";
 import { MediaModule } from "./media/media.module";
 import { ContentModule } from "./content/content.module";
+import { PropertiesModule } from "./properties/properties.module";
+import { ViewingsModule } from "./viewings/viewings.module";
+import { BuyerPreferencesModule } from "./buyer-preferences/buyer-preferences.module";
+import { StorefrontModule } from "./storefront/storefront.module";
 
 @Module({
   imports: [
@@ -56,7 +60,11 @@ import { ContentModule } from "./content/content.module";
     FollowUpsModule,
     AutomationsModule,
     MediaModule,
-    ContentModule
+    ContentModule,
+    PropertiesModule,
+    ViewingsModule,
+    BuyerPreferencesModule,
+    StorefrontModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })

@@ -1,0 +1,243 @@
+.page {
+  --font-body: var(--font-dm-sans), sans-serif;
+  --font-display: var(--font-manrope), sans-serif;
+  --yellow: #ffd124;
+  --yellow-deep: #f3c100;
+  --cream: #fbf8ef;
+  --paper: #fffdf7;
+  --ink: #10151e;
+  --muted: #595c58;
+  --line: #e4e2d9;
+  --red: #b3432f;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px 20px;
+  background: var(--cream);
+  font-family: var(--font-body);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+}
+.page button,
+.page input {
+  font: inherit;
+  color: inherit;
+}
+.page button {
+  cursor: pointer;
+}
+.page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 800 24px var(--font-display);
+  letter-spacing: -0.04em;
+  text-decoration: none;
+  color: var(--ink);
+}
+.logo i {
+  width: 20px;
+  height: 20px;
+  background: var(--yellow);
+  border-radius: 12px 12px 12px 3px;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 34px 32px;
+  box-shadow: 0 24px 60px #33231512;
+}
+
+.title {
+  font: 800 26px/1.15 var(--font-display);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 22px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.field input:focus {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+.field input::placeholder {
+  color: #9a9c93;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--red);
+  background: #fbebe6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.submit {
+  margin-top: 4px;
+  border: 0;
+  background: var(--yellow);
+  border-radius: 999px;
+  padding: 13px 20px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: 0.15s;
+}
+.submit:hover:not(:disabled) {
+  background: var(--yellow-deep);
+  transform: translateY(-1px);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a9ab9f;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.secondaryLink {
+  display: block;
+  width: 100%;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--ink);
+  transition: 0.15s;
+}
+.secondaryLink:hover {
+  background: var(--cream);
+}
+
+.footerText {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 18px;
+}
+.footerText a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.footerText a:hover {
+  border-color: var(--ink);
+}
+
+/* ---------- Status card (magic-link consume / invite accept) ---------- */
+.statusCard {
+  composes: card;
+  text-align: center;
+  padding: 40px 32px;
+}
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--yellow-deep);
+  animation: spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.statusIconError {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #fbebe6;
+  color: var(--red);
+  display: grid;
+  place-items: center;
+}
+.iconCircle {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #fff0a8;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.statusTitle {
+  font: 800 20px var(--font-display);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.statusText {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}

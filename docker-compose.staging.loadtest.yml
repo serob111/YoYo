@@ -1,0 +1,21 @@
+# Optional overlay - ONLY for the synthetic load-test phase. Adds the fake
+# Instagram Graph API stub as a container on the same network so
+# worker-messaging (via META_GRAPH_BASE_URL in .env.staging) can reach it
+# without any real Meta credentials or real sends.
+#
+# Usage (in addition to the base file, not instead of):
+#   docker compose -f docker-compose.staging.yml -f docker-compose.staging.loadtest.yml --env-file .env.staging up -d
+#
+# Remove this overlay (and unset META_GRAPH_BASE_URL / AI_FAKE_LATENCY_MS in
+# .env.staging) before the real Instagram/AI verification pass.
+services:
+  fake-graph-stub:
+    image: node:22-slim
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./scripts/fake-graph-stub.js:/app/fake-graph-stub.js:ro
+    command: ["node", "fake-graph-stub.js"]
+    environment:
+      PORT: "8089"
+      STUB_DELAY_MS: "150"

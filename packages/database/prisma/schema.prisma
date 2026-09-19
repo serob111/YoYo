@@ -52,52 +52,53 @@ model User {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  sessions             Session[]
-  magicLinkTokens      MagicLinkToken[]
-  organizationMembers  OrganizationMember[]      @relation("MemberUser")
-  sentInvites          OrganizationMember[]      @relation("InvitedBy")
-  auditLogEntries      AuditLog[]
+  sessions              Session[]
+  magicLinkTokens       MagicLinkToken[]
+  organizationMembers   OrganizationMember[] @relation("MemberUser")
+  sentInvites           OrganizationMember[] @relation("InvitedBy")
+  auditLogEntries       AuditLog[]
   assignedConversations Conversation[]
-  assignedLeads        Lead[]
-  assignedTasks        Task[]
-  loggedActivities     Activity[]
-  createdFollowUps     FollowUp[]
-  createdContentItems  ContentItem[]      @relation("ContentCreatedBy")
-  approvedContentItems ContentItem[]      @relation("ContentApprovedBy")
-  rejectedContentItems ContentItem[]      @relation("ContentRejectedBy")
+  assignedLeads         Lead[]
+  assignedTasks         Task[]
+  loggedActivities      Activity[]
+  createdFollowUps      FollowUp[]
+  createdContentItems   ContentItem[]        @relation("ContentCreatedBy")
+  approvedContentItems  ContentItem[]        @relation("ContentApprovedBy")
+  rejectedContentItems  ContentItem[]        @relation("ContentRejectedBy")
+  assignedViewings      Viewing[]
 
   @@map("users")
 }
 
 model Session {
-  id         String    @id @default(uuid())
+  id        String    @id @default(uuid())
   // SHA-256 of the opaque token stored in the session cookie. The raw token is
   // never persisted, so a DB read/log leak alone can't be replayed as a live session.
-  tokenHash  String    @unique
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  ipAddress  String?
-  userAgent  String?
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
 
   @@index([userId])
   @@map("sessions")
 }
 
 model MagicLinkToken {
-  id          String           @id @default(uuid())
-  userId      String
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash   String           @unique
-  purpose     AuthTokenPurpose
+  id                   String              @id @default(uuid())
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash            String              @unique
+  purpose              AuthTokenPurpose
   // For ORGANIZATION_INVITE tokens, the pending membership this token will activate.
-  organizationMemberId String? @unique
-  organizationMember    OrganizationMember? @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdAt   DateTime         @default(now())
+  organizationMemberId String?             @unique
+  organizationMember   OrganizationMember? @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
+  expiresAt            DateTime
+  consumedAt           DateTime?
+  createdAt            DateTime            @default(now())
 
   @@index([userId, purpose])
   @@map("magic_link_tokens")
@@ -108,53 +109,108 @@ model Organization {
   name      String
   slug      String             @unique
   status    OrganizationStatus @default(ACTIVE)
+  // Selects which packages/verticals config (nav, terminology, enabled modules,
+  // and eventually domain modules/AI tools) this org runs on. A plain string,
+  // not a Prisma enum, deliberately - the vertical registry is TS-code-driven
+  // (see packages/verticals), so adding a new vertical never requires a migration.
+  // Unknown/missing values fall back to "core" in getVerticalConfig - see that
+  // fallback before assuming every org has a value matching a registered vertical.
+  vertical  String             @default("core")
+  // Set on first checkout - null means this org has never started a Stripe
+  // Checkout/Portal session yet, not that billing failed.
+  stripeCustomerId String?     @unique
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  members    OrganizationMember[]
-  auditLogs  AuditLog[]
-  connectedAccounts ConnectedAccount[]
-  webhookEvents     ProviderWebhookEvent[]
-  contacts          Contact[]
-  conversations     Conversation[]
-  messages          Message[]
-  businessProfile   BusinessProfile?
-  products          Product[]
-  services          Service[]
-  knowledgeChunks   KnowledgeChunk[]
-  aiResponses       AiResponse[]
-  pipelines         Pipeline[]
-  leads             Lead[]
-  activities        Activity[]
-  tasks             Task[]
-  tags              Tag[]
-  followUps         FollowUp[]
-  automations       Automation[]
+  subscription         Subscription?
+  members              OrganizationMember[]
+  auditLogs            AuditLog[]
+  connectedAccounts    ConnectedAccount[]
+  webhookEvents        ProviderWebhookEvent[]
+  contacts             Contact[]
+  conversations        Conversation[]
+  messages             Message[]
+  businessProfile      BusinessProfile?
+  products             Product[]
+  services             Service[]
+  knowledgeChunks      KnowledgeChunk[]
+  aiResponses          AiResponse[]
+  pipelines            Pipeline[]
+  leads                Lead[]
+  activities           Activity[]
+  tasks                Task[]
+  tags                 Tag[]
+  followUps            FollowUp[]
+  automations          Automation[]
   automationExecutions AutomationExecution[]
-  contentItems       ContentItem[]
-  contentMediaAssets ContentMediaAsset[]
+  contentItems         ContentItem[]
+  contentMediaAssets   ContentMediaAsset[]
+  properties           Property[]
+  viewings             Viewing[]
+  buyerPreferences     BuyerPreference[]
 
   @@map("organizations")
 }
 
 model OrganizationMember {
-  id               String       @id @default(uuid())
-  organizationId   String
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User         @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
-  role             OrganizationRole
-  status           MemberStatus @default(INVITED)
-  invitedByUserId  String?
-  invitedBy        User?        @relation("InvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
-  invitedAt        DateTime     @default(now())
-  joinedAt         DateTime?
+  id              String           @id @default(uuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  role            OrganizationRole
+  status          MemberStatus     @default(INVITED)
+  invitedByUserId String?
+  invitedBy       User?            @relation("InvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  invitedAt       DateTime         @default(now())
+  joinedAt        DateTime?
 
   inviteToken MagicLinkToken?
 
   @@unique([organizationId, userId])
   @@index([organizationId, status])
   @@map("organization_members")
+}
+
+// Small, stable reference data (3 rows: solo/team/agency) - seeded directly
+// in this model's own migration rather than via a seed script, since none
+// exists in this repo yet. Not exposed for self-serve editing; changing
+// prices means a new migration, same as any other reference-data change.
+model Plan {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  name       String
+  priceCents Int
+  currency   String   @default("USD")
+  interval   String   @default("month")
+  createdAt  DateTime @default(now())
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  organizationId       String             @unique
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@map("subscriptions")
 }
 
 model AuditLog {
@@ -250,33 +306,33 @@ enum OutboxEventStatus {
 }
 
 model ConnectedAccount {
-  id                  String                  @id @default(uuid())
-  organizationId      String
-  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  provider            Provider
-  externalAccountId   String
-  displayName         String?
-  username            String?
-  accountType         String?
-  avatarUrl           String?
-  status              ConnectedAccountStatus  @default(CONNECTED)
+  id                   String                 @id @default(uuid())
+  organizationId       String
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider             Provider
+  externalAccountId    String
+  displayName          String?
+  username             String?
+  accountType          String?
+  avatarUrl            String?
+  status               ConnectedAccountStatus @default(CONNECTED)
   encryptedAccessToken String
-  tokenExpiresAt      DateTime?
-  grantedScopes       String[]                @default([])
-  capabilities        Json                    @default("{}")
-  providerMetadata    Json                    @default("{}")
-  lastSyncAt          DateTime?
-  lastWebhookAt       DateTime?
-  lastErrorCode       String?
-  lastErrorAt         DateTime?
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
+  tokenExpiresAt       DateTime?
+  grantedScopes        String[]               @default([])
+  capabilities         Json                   @default("{}")
+  providerMetadata     Json                   @default("{}")
+  lastSyncAt           DateTime?
+  lastWebhookAt        DateTime?
+  lastErrorCode        String?
+  lastErrorAt          DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
-  webhookEvents  ProviderWebhookEvent[]
+  webhookEvents     ProviderWebhookEvent[]
   contactIdentities ContactIdentity[]
-  conversations  Conversation[]
-  messages       Message[]
-  contentItems   ContentItem[]
+  conversations     Conversation[]
+  messages          Message[]
+  contentItems      ContentItem[]
 
   // Global, not per-org: this is the trust boundary inbound webhooks resolve
   // organizationId through. One external account can only ever belong to one org.
@@ -286,18 +342,18 @@ model ConnectedAccount {
 }
 
 model ProviderWebhookEvent {
-  id                 String               @id @default(uuid())
+  id                 String             @id @default(uuid())
   provider           Provider
   externalEventId    String
   connectedAccountId String?
-  connectedAccount   ConnectedAccount?    @relation(fields: [connectedAccountId], references: [id], onDelete: SetNull)
+  connectedAccount   ConnectedAccount?  @relation(fields: [connectedAccountId], references: [id], onDelete: SetNull)
   organizationId     String?
-  organization       Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization       Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   payload            Json
-  status             WebhookEventStatus   @default(RECEIVED)
-  attemptCount       Int                  @default(0)
+  status             WebhookEventStatus @default(RECEIVED)
+  attemptCount       Int                @default(0)
   lastError          String?
-  receivedAt         DateTime             @default(now())
+  receivedAt         DateTime           @default(now())
   processedAt        DateTime?
 
   // Prevents "same webhook delivered N times" from ever being processed twice.
@@ -311,14 +367,21 @@ model Contact {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   displayName    String
+  // Nullable - only populated for contacts that arrive with a direct contact
+  // method (e.g. a public storefront booking), not for provider-identity-only
+  // contacts (Instagram/TikTok), which are reached via ContactIdentity instead.
+  phone          String?
+  email          String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  identities    ContactIdentity[]
-  conversations Conversation[]
-  leads         Lead[]
+  identities       ContactIdentity[]
+  conversations    Conversation[]
+  leads            Lead[]
+  buyerPreferences BuyerPreference[]
 
   @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, phone])
   @@map("contacts")
 }
 
@@ -340,23 +403,23 @@ model ContactIdentity {
 }
 
 model Conversation {
-  id               String                      @id @default(uuid())
-  organizationId   String
-  organization     Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                 String                      @id @default(uuid())
+  organizationId     String
+  organization       Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connectedAccountId String
-  connectedAccount ConnectedAccount             @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
-  contactId        String
-  contact          Contact                     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  provider         Provider
-  assignedUserId   String?
-  assignedUser     User?                       @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  automationState  ConversationAutomationState @default(HUMAN_ACTIVE)
-  lastMessageAt    DateTime?
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
+  connectedAccount   ConnectedAccount            @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  contactId          String
+  contact            Contact                     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider           Provider
+  assignedUserId     String?
+  assignedUser       User?                       @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  automationState    ConversationAutomationState @default(HUMAN_ACTIVE)
+  lastMessageAt      DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
 
-  messages Message[]
-  aiResponses AiResponse[]
+  messages     Message[]
+  aiResponses  AiResponse[]
   sourcedLeads Lead[]
 
   @@unique([connectedAccountId, contactId])
@@ -396,17 +459,17 @@ model Message {
 }
 
 model OutboxEvent {
-  id            String            @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String?
-  aggregateType String
-  aggregateId   String
-  eventType     String
-  payload       Json
-  status        OutboxEventStatus @default(PENDING)
-  attemptCount  Int               @default(0)
-  lastError     String?
-  createdAt     DateTime          @default(now())
-  dispatchedAt  DateTime?
+  aggregateType  String
+  aggregateId    String
+  eventType      String
+  payload        Json
+  status         OutboxEventStatus @default(PENDING)
+  attemptCount   Int               @default(0)
+  lastError      String?
+  createdAt      DateTime          @default(now())
+  dispatchedAt   DateTime?
 
   @@index([status, createdAt])
   @@map("outbox_events")
@@ -438,29 +501,29 @@ enum AiResponseStatus {
 }
 
 model BusinessProfile {
-  id             String       @id @default(uuid())
-  organizationId String       @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  businessName   String
-  description    String?
+  id                  String       @id @default(uuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  businessName        String
+  description         String?
   // Free-text instructions steering the AI agent's tone/persona.
-  tone           String?
-  timezone       String       @default("UTC")
-  businessHours  Json?
+  tone                String?
+  timezone            String       @default("UTC")
+  businessHours       Json?
   // New conversations only start automationState = AI_ACTIVE when this is true;
   // otherwise they default to HUMAN_ACTIVE (see Conversation.automationState).
-  aiEnabled      Boolean      @default(false)
+  aiEnabled           Boolean      @default(false)
   // Nullable override of AI_DEFAULT_MODEL env var - keeps the model swappable
   // per org without a code change.
-  defaultModel   String?
+  defaultModel        String?
   // Null = no cap. Enforced in apps/worker-ai against summed AiResponse.costCents.
   monthlyCostCapCents Int?
   // Phase 6: when true, ContentItem.submit() skips PENDING_APPROVAL and goes
   // straight to APPROVED (audited via an AuditLog "content.auto_approved"/
   // "content.auto_published" row) - opt-in, default off.
-  autoPublishEnabled Boolean @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  autoPublishEnabled  Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@map("business_profiles")
 }
@@ -499,19 +562,19 @@ model Service {
 }
 
 model KnowledgeChunk {
-  id              String                   @id @default(uuid())
+  id              String                       @id @default(uuid())
   organizationId  String
-  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sourceType      KnowledgeSourceType      @default(MANUAL)
+  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceType      KnowledgeSourceType          @default(MANUAL)
   sourceId        String?
-  content         String                   @db.Text
+  content         String                       @db.Text
   // Prisma has no native vector type; DDL for this column is hand-written in
   // the migration SQL (see 0000..._phase3_ai_sales) and read/written via raw
   // SQL ($queryRaw/$executeRaw), never through the normal query builder.
   embedding       Unsupported("vector(1024)")?
-  embeddingStatus KnowledgeEmbeddingStatus @default(PENDING)
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
+  embeddingStatus KnowledgeEmbeddingStatus     @default(PENDING)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
 
   @@index([organizationId])
   @@map("knowledge_chunks")
@@ -522,26 +585,26 @@ model KnowledgeChunk {
 // with P2002 on a duplicate attempt) - mirrors the ContactIdentity/ConnectedAccount
 // unique-constraint-as-claim pattern from Phase 2. Also doubles as the usage/cost ledger.
 model AiResponse {
-  id               String           @id @default(uuid())
-  organizationId   String
-  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  conversationId   String
-  conversation     Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  triggerMessageId String           @unique
-  triggerMessage   Message          @relation("AiResponseTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
-  resultMessageId  String?          @unique
-  resultMessage    Message?         @relation("AiResponseResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
-  status           AiResponseStatus @default(PENDING)
-  model            String?
-  inputTokens      Int?
-  outputTokens     Int?
-  cacheReadTokens  Int?
+  id                  String           @id @default(uuid())
+  organizationId      String
+  organization        Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationId      String
+  conversation        Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  triggerMessageId    String           @unique
+  triggerMessage      Message          @relation("AiResponseTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
+  resultMessageId     String?          @unique
+  resultMessage       Message?         @relation("AiResponseResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
+  status              AiResponseStatus @default(PENDING)
+  model               String?
+  inputTokens         Int?
+  outputTokens        Int?
+  cacheReadTokens     Int?
   cacheCreationTokens Int?
-  costCents        Int?
-  toolCallCount    Int              @default(0)
-  errorMessage     String?
-  createdAt        DateTime         @default(now())
-  completedAt      DateTime?
+  costCents           Int?
+  toolCallCount       Int              @default(0)
+  errorMessage        String?
+  createdAt           DateTime         @default(now())
+  completedAt         DateTime?
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("ai_responses")
@@ -571,12 +634,12 @@ enum TaskStatus {
 // no @@unique([organizationId]) - so a second pipeline is a schema-compatible
 // later addition, not a migration.
 model Pipeline {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   stages PipelineStage[]
   leads  Lead[]
@@ -605,31 +668,38 @@ model PipelineStage {
 }
 
 model Lead {
-  id                   String    @id @default(uuid())
+  id                   String        @id @default(uuid())
   organizationId       String
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contactId            String
-  contact              Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact              Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   pipelineId           String
-  pipeline             Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  pipeline             Pipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   stageId              String
   stage                PipelineStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
   title                String
+  // Real-estate-specific classification (buyer/renter vs. seller/landlord);
+  // always null for core-vertical orgs. TransactionType on BuyerPreference
+  // covers what a buyer/renter is searching for - this is a different axis,
+  // which side of the deal the lead is on.
+  intent               LeadIntent?
   valueCents           Int?
-  currency             String    @default("USD")
+  currency             String        @default("USD")
   sourceConversationId String?
   sourceConversation   Conversation? @relation(fields: [sourceConversationId], references: [id], onDelete: SetNull)
   assignedUserId       String?
-  assignedUser         User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  assignedUser         User?         @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
   closedAt             DateTime?
 
-  activities Activity[]
-  tasks      Task[]
-  tags       LeadTag[]
-  followUps  FollowUp[]
+  activities           Activity[]
+  tasks                Task[]
+  tags                 LeadTag[]
+  followUps            FollowUp[]
   automationExecutions AutomationExecution[]
+  properties           LeadProperty[]
+  viewings             Viewing[]
 
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([contactId])
@@ -659,19 +729,19 @@ model Activity {
 // No reminder/notification/scheduling logic here - that's Phase 5's follow-up
 // scheduler. A Task here is just an assignable to-do tied to a lead.
 model Task {
-  id             String     @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leadId         String
-  lead           Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   title          String
   description    String?
   dueAt          DateTime?
-  status         TaskStatus @default(OPEN)
+  status         TaskStatus   @default(OPEN)
   assignedUserId String?
-  assignedUser   User?      @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  assignedUser   User?        @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   completedAt    DateTime?
 
   @@index([organizationId, dueAt])
@@ -680,12 +750,12 @@ model Task {
 }
 
 model Tag {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   color          String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 
   leads LeadTag[]
 
@@ -769,6 +839,10 @@ model FollowUp {
 enum AutomationTriggerType {
   LEAD_CREATED
   LEAD_STAGE_CHANGED
+  // Fires when a property is created/updated to ACTIVE and matches a
+  // contact's saved BuyerPreference - see properties.service.ts's
+  // "property.activated" outbox emission and the dispatcher's matching query.
+  LISTING_MATCHED
 }
 
 enum AutomationActionType {
@@ -889,52 +963,52 @@ enum MediaAssetStatus {
 }
 
 model ContentItem {
-  id                 String            @id @default(uuid())
-  organizationId     String
-  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connectedAccountId String
-  connectedAccount   ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  id                     String            @id @default(uuid())
+  organizationId         String
+  organization           Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId     String
+  connectedAccount       ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
   // Denormalized off connectedAccount - avoids a join for dispatch routing,
   // same reasoning as Message.provider / ContactIdentity.provider.
-  provider           Provider
-  postType           ContentPostType
-  caption            String?           @db.Text
+  provider               Provider
+  postType               ContentPostType
+  caption                String?           @db.Text
   // The instruction that seeded the last AI caption generation, if any - kept
   // for "regenerate" and for audit ("what did we ask the model").
-  captionPrompt      String?
-  generationError    String?
-  status             ContentItemStatus @default(DRAFT)
+  captionPrompt          String?
+  generationError        String?
+  status                 ContentItemStatus @default(DRAFT)
   // Null = publish ASAP once approved (defaulted to now() at approval time,
   // never left null past APPROVED) - mirrors FollowUp.scheduledFor.
-  scheduledFor       DateTime?
+  scheduledFor           DateTime?
   // True when approval was skipped because BusinessProfile.autoPublishEnabled
   // was on at submit time - drives the "content.auto_approved"/
   // "content.auto_published" AuditLog rows.
-  autoApproved       Boolean           @default(false)
+  autoApproved           Boolean           @default(false)
   submittedForApprovalAt DateTime?
-  approvedAt         DateTime?
-  approvedByUserId   String?
-  approvedByUser     User?             @relation("ContentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
-  rejectedAt         DateTime?
-  rejectedByUserId   String?
-  rejectedByUser     User?             @relation("ContentRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
-  rejectionReason    String?
-  createdByUserId    String?
-  createdByUser      User?             @relation("ContentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedAt             DateTime?
+  approvedByUserId       String?
+  approvedByUser         User?             @relation("ContentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  rejectedAt             DateTime?
+  rejectedByUserId       String?
+  rejectedByUser         User?             @relation("ContentRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  rejectionReason        String?
+  createdByUserId        String?
+  createdByUser          User?             @relation("ContentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   // Best-effort debugging/audit trail of provider-side container/publish ids -
   // NOT used for crash-resumption. A retried publish re-runs the whole
   // provider call rather than resuming a partial container; both Instagram
   // and TikTok auto-expire orphaned unpublished containers on their own.
-  providerContainerId String?
-  providerPostId      String?
-  publishAttemptCount Int      @default(0)
-  publishErrorMessage String?
+  providerContainerId    String?
+  providerPostId         String?
+  publishAttemptCount    Int               @default(0)
+  publishErrorMessage    String?
   // e.g. { requiresReconciliation: true } - mirrors Message.metadata.
-  metadata             Json     @default("{}")
-  publishedAt          DateTime?
-  cancelledAt           DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  metadata               Json              @default("{}")
+  publishedAt            DateTime?
+  cancelledAt            DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   media ContentMediaAsset[]
 
@@ -948,11 +1022,11 @@ model ContentItem {
 // reused across items, unlike LeadTag's genuine many-to-many). Single
 // image/video items are just carousels of size 1 in the data model.
 model ContentMediaAsset {
-  id                 String            @id @default(uuid())
+  id                 String           @id @default(uuid())
   organizationId     String
-  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization       Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contentItemId      String
-  contentItem        ContentItem       @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  contentItem        ContentItem      @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
   // 0-based; IMAGE/VIDEO items always have exactly one asset at order 0,
   // CAROUSEL items have 2-10 ordered assets (validated by ContentService, not
   // the DB - Instagram's own carousel child cap).
@@ -966,12 +1040,200 @@ model ContentMediaAsset {
   originalStorageKey String?
   mimeType           String
   byteSize           Int?
-  status             MediaAssetStatus  @default(UPLOADED)
+  status             MediaAssetStatus @default(UPLOADED)
   enhancementPrompt  String?
   enhancementError   String?
-  createdAt          DateTime          @default(now())
+  createdAt          DateTime         @default(now())
 
   @@unique([contentItemId, order])
   @@index([organizationId])
   @@map("content_media_assets")
+}
+
+// ---------------------------------------------------------------------------
+// Vertical Phase 2: Real Estate domain foundation. See packages/verticals for
+// the config registry this data model backs. Lead/Pipeline/Contact are
+// deliberately untouched - a Lead can link to zero or more Property rows via
+// LeadProperty (mirrors LeadTag) instead of gaining property-specific columns
+// itself, keeping the Core CRM vertical-agnostic. Additive only.
+// ---------------------------------------------------------------------------
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  COMMERCIAL
+  LAND
+}
+
+enum PropertyStatus {
+  DRAFT
+  ACTIVE
+  UNDER_OFFER
+  SOLD
+  RENTED
+  ARCHIVED
+}
+
+enum TransactionType {
+  SALE
+  RENT
+}
+
+enum LeadIntent {
+  BUYER
+  RENTER
+  SELLER
+  LANDLORD
+}
+
+enum RentBillingPeriod {
+  DAY
+  WEEK
+  MONTH
+}
+
+enum FinancingType {
+  CASH
+  MORTGAGE
+}
+
+enum PurchaseTimeframe {
+  IMMEDIATE
+  WITHIN_3_MONTHS
+  WITHIN_6_MONTHS
+  FLEXIBLE
+}
+
+// Marketplace/storefront participation must be explicit (default PRIVATE) -
+// no code reads this yet, it exists now so a later storefront/marketplace
+// phase is additive rather than a data migration.
+enum PropertyVisibility {
+  PRIVATE
+  ORGANIZATION_STOREFRONT
+  MARKETPLACE
+}
+
+model Property {
+  id                  String             @id @default(uuid())
+  organizationId      String
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?            @db.Text
+  propertyType        PropertyType
+  status              PropertyStatus     @default(DRAFT)
+  visibility          PropertyVisibility @default(PRIVATE)
+  transactionType     TransactionType    @default(SALE)
+  // priceCents is the sale price when transactionType is SALE, or the rent
+  // amount per rentBillingPeriod when RENT - interpretation is conditional
+  // on transactionType, not a unit stored separately per row.
+  priceCents          Int?
+  currency            String             @default("USD")
+  rentBillingPeriod   RentBillingPeriod?
+  depositCents        Int?
+  minRentalPeriodDays Int?
+  availableFrom       DateTime?
+  country             String?
+  district            String?
+  city                String?
+  address             String?
+  bedrooms            Int?
+  bathrooms           Int?
+  areaSqm             Float?
+  floor               Int?
+  totalFloors         Int?
+  condition           String?
+  buildingType        String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  leads    LeadProperty[]
+  viewings Viewing[]
+
+  @@index([organizationId, status])
+  // Not queried by anything today - kept from an in-progress cross-org
+  // marketplace search that was scoped out (YoYo is B2B2C, not a public
+  // marketplace), but the index is additive/inert and matches the general
+  // "don't build the network now, don't block it later" stance.
+  @@index([visibility, status, createdAt])
+  @@map("properties")
+}
+
+// Many-to-many: a lead may be interested in several properties, a property
+// may have several interested leads. Structurally identical to LeadTag.
+model LeadProperty {
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([leadId, propertyId])
+  @@map("lead_properties")
+}
+
+// One active preference set per contact (not per lead) - buyer intent
+// persists across the relationship, not just one deal.
+model BuyerPreference {
+  id                  String             @id @default(uuid())
+  organizationId      String
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId           String
+  contact             Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  transactionType     TransactionType    @default(SALE)
+  minPriceCents       Int?
+  maxPriceCents       Int?
+  currency            String             @default("USD")
+  minAreaSqm          Float?
+  bedrooms            Int?
+  country             String?
+  city                String?
+  districts           String[]           @default([])
+  propertyType        PropertyType?
+  // RENT-only qualification
+  furnished           Boolean?
+  moveInDate          DateTime?
+  leaseDurationMonths Int?
+  hasPets             Boolean?
+  occupantCount       Int?
+  // SALE-only qualification
+  financingType       FinancingType?
+  purchaseTimeframe   PurchaseTimeframe?
+  notes               String?            @db.Text
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([contactId, transactionType])
+  @@map("buyer_preferences")
+}
+
+enum ViewingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Deliberately does not write an Activity row on status change - ActivityType
+// is a Core enum and a vertical-specific value there would blur the line this
+// refactor exists to draw. Revisit if/when Activity itself grows a vertical
+// extension point.
+model Viewing {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  propertyId     String
+  property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leadId         String
+  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledFor   DateTime
+  status         ViewingStatus @default(SCHEDULED)
+  assignedUserId String?
+  assignedUser   User?         @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, scheduledFor])
+  @@index([leadId])
+  @@map("viewings")
 }

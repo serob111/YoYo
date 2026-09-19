@@ -16,6 +16,8 @@ import type {
   OrganizationRole,
   Prisma,
   PrismaClient,
+  Property,
+  PropertyType,
   Provider,
   Tag
 } from "@yoyo/database";
@@ -221,6 +223,19 @@ export async function createTestContentMediaAsset(
       kind: params.kind ?? "IMAGE",
       storageKey: params.storageKey ?? `orgs/${params.organizationId}/content/${randomUUID()}.jpg`,
       mimeType: params.mimeType ?? "image/jpeg"
+    }
+  });
+}
+
+export async function createTestProperty(
+  prisma: PrismaClient,
+  params: { organizationId: string; title?: string; propertyType?: PropertyType }
+): Promise<Property> {
+  return prisma.property.create({
+    data: {
+      organizationId: params.organizationId,
+      title: params.title ?? "Test Property",
+      propertyType: params.propertyType ?? "APARTMENT"
     }
   });
 }

@@ -9,3 +9,5 @@ export * from "./ai";
 export * from "./crm";
 export * from "./automations";
 export * from "./content";
+export * from "./real-estate";
+export * from "./storefront";

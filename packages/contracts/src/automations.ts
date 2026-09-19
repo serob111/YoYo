@@ -36,14 +36,17 @@ export const createFollowUpSchema = z.discriminatedUnion("actionType", [
 ]);
 export type CreateFollowUpInput = z.infer<typeof createFollowUpSchema>;
 
-export const automationTriggerTypeSchema = z.enum(["LEAD_CREATED", "LEAD_STAGE_CHANGED"]);
+export const automationTriggerTypeSchema = z.enum(["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LISTING_MATCHED"]);
 export const automationActionTypeSchema = z.enum(["CREATE_FOLLOW_UP", "CREATE_TASK", "ADD_TAG"]);
 export const automationExecutionStatusSchema = z.enum(["PENDING", "COMPLETED", "FAILED", "SKIPPED"]);
 
 // LEAD_STAGE_CHANGED's toStageId is optional - omitted means "any stage change."
 export const automationTriggerSchema = z.discriminatedUnion("triggerType", [
   z.object({ triggerType: z.literal("LEAD_CREATED") }),
-  z.object({ triggerType: z.literal("LEAD_STAGE_CHANGED"), toStageId: z.string().uuid().optional() })
+  z.object({ triggerType: z.literal("LEAD_STAGE_CHANGED"), toStageId: z.string().uuid().optional() }),
+  // Fires when a newly-ACTIVE property matches a contact's saved
+  // BuyerPreference - no extra config, matching happens server-side.
+  z.object({ triggerType: z.literal("LISTING_MATCHED") })
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 

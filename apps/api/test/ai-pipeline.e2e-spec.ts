@@ -175,6 +175,31 @@ describe("AI sales pipeline (apps/worker-ai)", () => {
     expect(updatedConversation.automationState).toBe("PAUSED");
   });
 
+  it("pauses the conversation when the model sets needsHuman without an explicit REQUEST_HUMAN_TAKEOVER action", async () => {
+    const { triggerMessage, conversation } = await seedAiActiveConversation();
+    const prisma = getPrisma(app);
+    const provider = new ScriptedAIProvider([
+      {
+        stopReason: "tool_use",
+        content: [
+          {
+            type: "tool_use",
+            id: "t1",
+            name: "submit_reply",
+            input: { reply: "I'm not sure about that, let me flag this for the team.", intent: "question", needsHuman: true, actions: [] }
+          }
+        ],
+        usage: { inputTokens: 50, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0 }
+      }
+    ]);
+
+    const result = await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+    expect(result).toBe("sent");
+    const updatedConversation = await prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } });
+    expect(updatedConversation.automationState).toBe("PAUSED");
+  });
+
   it("does not double-process the same trigger message when claimed concurrently", async () => {
     const { triggerMessage } = await seedAiActiveConversation();
     const prisma = getPrisma(app);

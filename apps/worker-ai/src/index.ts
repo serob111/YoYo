@@ -9,7 +9,7 @@ import { Worker, type Job } from "bullmq";
 import { loadAiWorkerEnv } from "@yoyo/config";
 import { createLogger } from "@yoyo/logger";
 import { createPrismaClient } from "@yoyo/database";
-import { AnthropicProvider, VoyageEmbeddingProvider } from "@yoyo/ai";
+import { AnthropicProvider, VoyageEmbeddingProvider, FakeLatencyAIProvider, FakeLatencyEmbeddingProvider } from "@yoyo/ai";
 import {
   AI_RESPONSES_QUEUE_NAME,
   KNOWLEDGE_EMBEDDINGS_QUEUE_NAME,
@@ -23,8 +23,15 @@ import { generateEmbedding } from "./generate-embedding";
 const env = loadAiWorkerEnv();
 const logger = createLogger("worker-ai");
 const prisma = createPrismaClient({ databaseUrl: env.DATABASE_URL });
-const aiProvider = new AnthropicProvider(env.ANTHROPIC_API_KEY);
-const embeddingProvider = new VoyageEmbeddingProvider(env.VOYAGE_API_KEY, env.AI_EMBEDDING_MODEL);
+// AI_FAKE_LATENCY_MS is load-testing-only (see packages/config's doc comment)
+// - unset in every real deployment, so this branch never affects production.
+const aiProvider = env.AI_FAKE_LATENCY_MS ? new FakeLatencyAIProvider(env.AI_FAKE_LATENCY_MS) : new AnthropicProvider(env.ANTHROPIC_API_KEY);
+const embeddingProvider = env.AI_FAKE_LATENCY_MS
+  ? new FakeLatencyEmbeddingProvider(env.AI_FAKE_LATENCY_MS)
+  : new VoyageEmbeddingProvider(env.VOYAGE_API_KEY, env.AI_EMBEDDING_MODEL);
+if (env.AI_FAKE_LATENCY_MS) {
+  logger.info({ delayMs: env.AI_FAKE_LATENCY_MS }, "worker-ai using fake-latency providers (load-test mode, no real LLM calls)");
+}
 
 const aiResponsesWorker = new Worker<AiResponseJobData>(
   AI_RESPONSES_QUEUE_NAME,

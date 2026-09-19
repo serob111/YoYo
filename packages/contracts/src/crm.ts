@@ -3,9 +3,23 @@ import { z } from "zod";
 export const contactSchema = z.object({
   id: z.string().uuid(),
   displayName: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
   createdAt: z.string().datetime()
 });
 export type Contact = z.infer<typeof contactSchema>;
+
+// Manual entry - the only other ways a Contact gets created are Instagram/
+// TikTok webhook ingestion and the public storefront's booking flow, neither
+// of which covers a walk-in, phone call, or referral an agent hears about
+// directly. displayName is the one required field; phone/email are optional
+// since an agent may only have a name at first ("someone referred by Anna").
+export const createContactSchema = z.object({
+  displayName: z.string().min(1).max(200),
+  phone: z.string().max(40).nullable().optional(),
+  email: z.string().email().max(200).nullable().optional()
+});
+export type CreateContactInput = z.infer<typeof createContactSchema>;
 
 export const pipelineStageSchema = z.object({
   id: z.string().uuid(),
@@ -23,12 +37,16 @@ export const pipelineSchema = z.object({
 });
 export type PipelineDto = z.infer<typeof pipelineSchema>;
 
+export const leadIntentSchema = z.enum(["BUYER", "RENTER", "SELLER", "LANDLORD"]);
+export type LeadIntent = z.infer<typeof leadIntentSchema>;
+
 export const leadSchema = z.object({
   id: z.string().uuid(),
   contactId: z.string().uuid(),
   pipelineId: z.string().uuid(),
   stageId: z.string().uuid(),
   title: z.string(),
+  intent: leadIntentSchema.nullable(),
   valueCents: z.number().int().nullable(),
   currency: z.string(),
   sourceConversationId: z.string().uuid().nullable(),
@@ -41,6 +59,7 @@ export type LeadDto = z.infer<typeof leadSchema>;
 export const upsertLeadSchema = z.object({
   contactId: z.string().uuid(),
   title: z.string().min(1).max(200),
+  intent: leadIntentSchema.nullable().optional(),
   valueCents: z.number().int().nonnegative().nullable().optional(),
   currency: z.string().length(3).default("USD"),
   assignedUserId: z.string().uuid().nullable().optional()
@@ -49,6 +68,7 @@ export type UpsertLeadInput = z.infer<typeof upsertLeadSchema>;
 
 export const updateLeadSchema = z.object({
   title: z.string().min(1).max(200),
+  intent: leadIntentSchema.nullable().optional(),
   valueCents: z.number().int().nonnegative().nullable().optional(),
   currency: z.string().length(3).default("USD"),
   assignedUserId: z.string().uuid().nullable().optional()

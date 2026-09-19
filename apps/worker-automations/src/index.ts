@@ -37,10 +37,11 @@ const automationsWorker = new Worker<AutomationTriggerJobData>(
   async (job: Job<AutomationTriggerJobData>) => {
     const result = await processAutomationTrigger(prisma, {
       outboxEventId: job.data.outboxEventId,
-      eventType: job.data.eventType as "lead.created" | "lead.stage_changed",
+      eventType: job.data.eventType as "lead.created" | "lead.stage_changed" | "property.activated",
       organizationId: job.data.organizationId,
       leadId: job.data.leadId,
-      payload: job.data.payload
+      payload: job.data.payload,
+      triggerEventId: job.data.triggerEventId
     });
     logger.info({ jobId: job.id, requestId: job.data.requestId, result }, "automation trigger processed");
   },

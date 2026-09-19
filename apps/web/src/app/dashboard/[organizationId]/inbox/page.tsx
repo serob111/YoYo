@@ -1,34 +1,56 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { ChatCircle, InstagramLogo } from "@phosphor-icons/react";
 import { useCurrentUser } from "@/lib/hooks";
 import { useConversations } from "@/lib/conversations-hooks";
+import { useConnectedAccounts, connectAccountHref } from "@/lib/integrations-hooks";
+import { EmptyState } from "@/components/empty-state";
 import { ConversationList } from "./conversation-list";
 import { ConversationThread } from "./conversation-thread";
 
 export default function InboxPage() {
   const params = useParams<{ organizationId: string }>();
+  const searchParams = useSearchParams();
   const organizationId = params.organizationId;
   const { data: user } = useCurrentUser();
   const { data } = useConversations(organizationId);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const { data: connectedAccounts } = useConnectedAccounts(organizationId);
+  const hasConnectedAccount = (connectedAccounts?.length ?? 0) > 0;
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(searchParams.get("conversation"));
 
-  const selectedConversation = data?.pages
-    .flatMap((page) => page.items)
-    .find((conversation) => conversation.id === selectedConversationId);
+  const conversations = data?.pages.flatMap((page) => page.items) ?? [];
+  const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId);
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] overflow-hidden rounded-lg border border-border">
+    <div className="flex h-full overflow-hidden rounded-2xl border border-border">
       <div className="w-80 shrink-0 overflow-y-auto border-r border-border">
-        <ConversationList organizationId={organizationId} selectedConversationId={selectedConversationId} onSelect={setSelectedConversationId} />
+        {conversations.length === 0 ? (
+          hasConnectedAccount ? (
+            <EmptyState
+              icon={ChatCircle}
+              title="No conversations yet"
+              description="New messages from Instagram or TikTok will show up here automatically."
+            />
+          ) : (
+            <EmptyState
+              icon={InstagramLogo}
+              title="Connect a channel to start"
+              description="Link your Instagram or TikTok account so customer messages start flowing in."
+              action={{ label: "Connect Instagram", href: connectAccountHref(organizationId, "instagram"), external: true }}
+            />
+          )
+        ) : (
+          <ConversationList organizationId={organizationId} selectedConversationId={selectedConversationId} onSelect={setSelectedConversationId} />
+        )}
       </div>
       <div className="flex-1">
         {selectedConversation ? (
           <ConversationThread organizationId={organizationId} conversation={selectedConversation} currentUserId={user?.id} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Select a conversation to view messages.
+            {conversations.length === 0 ? "Once you're connected, conversations will open here." : "Select a conversation to view messages."}
           </div>
         )}
       </div>

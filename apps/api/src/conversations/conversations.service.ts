@@ -17,7 +17,10 @@ export class ConversationsService {
       orderBy: { updatedAt: "desc" },
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { contact: { select: { displayName: true } } }
+      include: {
+        contact: { select: { displayName: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { text: true } }
+      }
     });
 
     const hasMore = conversations.length > take;
@@ -32,6 +35,7 @@ export class ConversationsService {
         assignedUserId: c.assignedUserId,
         automationState: c.automationState,
         lastMessageAt: c.lastMessageAt,
+        lastMessageText: c.messages[0]?.text ?? null,
         createdAt: c.createdAt
       })),
       nextCursor: hasMore ? page[page.length - 1]!.id : null

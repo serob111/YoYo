@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "zod": "^3.23.8",
-    "@yoyo/permissions": "workspace:*"
+    "@yoyo/permissions": "workspace:*",
+    "@yoyo/verticals": "workspace:*"
   },
   "devDependencies": {
     "@yoyo/typescript-config": "workspace:*",

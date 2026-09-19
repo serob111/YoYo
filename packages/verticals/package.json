@@ -1,0 +1,17 @@
+{
+  "name": "@yoyo/verticals",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@yoyo/typescript-config": "workspace:*",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

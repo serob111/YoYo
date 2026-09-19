@@ -11,10 +11,13 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:reset": "prisma migrate reset --force --skip-seed"
+    "db:reset": "prisma migrate reset --force --skip-seed",
+    "db:seed:load-test": "node dist/seed-load-test.js"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
+    "@yoyo/crypto": "workspace:*",
+    "argon2": "^0.41.1",
     "luxon": "^3.7.2"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { getOrCreateDefaultPipeline } from "@yoyo/database";
-import type { UpdateLeadInput, UpsertLeadInput } from "@yoyo/contracts";
+import { leadIntentSchema, type UpdateLeadInput, type UpsertLeadInput } from "@yoyo/contracts";
 import { PrismaService } from "../common/prisma.service";
 import { OutboxService } from "../common/outbox.service";
 import { RequestContext } from "../common/request-context";
@@ -13,21 +13,32 @@ export class LeadsService {
     private readonly outbox: OutboxService
   ) {}
 
-  async list(organizationId: string, filters: { stageId?: string; contactId?: string }, cursor?: string, take = 30) {
+  async list(organizationId: string, filters: { stageId?: string; contactId?: string; search?: string; intent?: string }, cursor?: string, take = 30) {
+    // Invalid/unrecognized intent values are ignored rather than rejected -
+    // this is a list filter, not a write path, so a stale/garbage query param
+    // should just behave like "no filter" instead of erroring the page.
+    const intent = leadIntentSchema.safeParse(filters.intent);
+
     const leads = await this.prisma.client.lead.findMany({
       where: {
         organizationId,
         ...(filters.stageId ? { stageId: filters.stageId } : {}),
-        ...(filters.contactId ? { contactId: filters.contactId } : {})
+        ...(filters.contactId ? { contactId: filters.contactId } : {}),
+        ...(filters.search ? { title: { contains: filters.search, mode: "insensitive" } } : {}),
+        ...(intent.success ? { intent: intent.data } : {})
       },
       orderBy: { updatedAt: "desc" },
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: { contact: { select: { displayName: true } } }
     });
 
     const hasMore = leads.length > take;
     const page = hasMore ? leads.slice(0, take) : leads;
-    return { items: page, nextCursor: hasMore ? page[page.length - 1]!.id : null };
+    return {
+      items: page.map(({ contact, ...lead }) => ({ ...lead, contactDisplayName: contact.displayName })),
+      nextCursor: hasMore ? page[page.length - 1]!.id : null
+    };
   }
 
   async getOrThrow(organizationId: string, leadId: string) {
@@ -61,6 +72,7 @@ export class LeadsService {
           pipelineId: pipeline.id,
           stageId: firstStage.id,
           title: input.title,
+          intent: input.intent ?? null,
           valueCents: input.valueCents ?? null,
           currency: input.currency,
           assignedUserId: input.assignedUserId ?? null
@@ -85,6 +97,7 @@ export class LeadsService {
       where: { id: leadId },
       data: {
         title: input.title,
+        intent: input.intent ?? null,
         valueCents: input.valueCents ?? null,
         currency: input.currency,
         assignedUserId: input.assignedUserId ?? null

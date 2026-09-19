@@ -60,3 +60,65 @@ export function resolveNextSendTime(requestedAt: Date, timezone: string, busines
 
   return requestedAt; // no open window found within a week - fail open
 }
+
+// Fallback used only when an org hasn't configured BusinessProfile.businessHours
+// yet - generating unrestricted 24h slots would be a worse default than a
+// reasonable showroom-style week, and a storefront visitor has no way to know
+// the org simply hasn't filled the field in.
+const DEFAULT_VIEWING_HOURS: BusinessHours = {
+  mon: { open: "10:00", close: "19:00" },
+  tue: { open: "10:00", close: "19:00" },
+  wed: { open: "10:00", close: "19:00" },
+  thu: { open: "10:00", close: "19:00" },
+  fri: { open: "10:00", close: "19:00" },
+  sat: { open: "10:00", close: "16:00" },
+  sun: null
+};
+
+/**
+ * Generates bookable viewing-slot start times for a single calendar day, in
+ * the business's own timezone. Used by the public storefront's booking flow -
+ * pure and DB-free so it can validate a submitted slot the same way it
+ * generated it, without a second source of truth.
+ */
+export function generateViewingSlots(params: {
+  date: string; // "YYYY-MM-DD", interpreted in `timezone`
+  timezone: string;
+  businessHours: unknown;
+  slotMinutes: number;
+  now: Date;
+  bookedTimes: Date[];
+}): Date[] {
+  const zoneProbe = DateTime.fromJSDate(params.now, { zone: params.timezone });
+  const zone = zoneProbe.isValid ? params.timezone : "UTC";
+  const day = DateTime.fromISO(params.date, { zone });
+  if (!day.isValid) return [];
+
+  const hours = isBusinessHours(params.businessHours) ? params.businessHours : DEFAULT_VIEWING_HOURS;
+  const dayKey = WEEKDAY_KEYS[day.weekday - 1];
+  const window = dayKey ? hours[dayKey] : undefined;
+  if (!window) return [];
+
+  const openMinutes = parseTimeToMinutes(window.open);
+  const closeMinutes = parseTimeToMinutes(window.close);
+  if (openMinutes === null || closeMinutes === null) return [];
+
+  const dayStart = day.startOf("day");
+  const now = DateTime.fromJSDate(params.now, { zone });
+  const bookedMillis = params.bookedTimes.map((d) => d.getTime());
+
+  const slots: Date[] = [];
+  for (let minutes = openMinutes; minutes + params.slotMinutes <= closeMinutes; minutes += params.slotMinutes) {
+    const slotStart = dayStart.plus({ minutes });
+    if (slotStart <= now) continue;
+
+    const slotEndMillis = slotStart.plus({ minutes: params.slotMinutes }).toMillis();
+    const slotStartMillis = slotStart.toMillis();
+    const isBooked = bookedMillis.some((t) => t >= slotStartMillis && t < slotEndMillis);
+    if (isBooked) continue;
+
+    slots.push(slotStart.toJSDate());
+  }
+
+  return slots;
+}

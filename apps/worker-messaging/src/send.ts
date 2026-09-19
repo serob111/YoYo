@@ -37,7 +37,7 @@ export async function sendPendingMessage(
   // look up by contactId rather than the (provider, connectedAccountId,
   // externalId) compound key used elsewhere.
   const identity = await prisma.contactIdentity.findFirst({
-    where: { contactId: message.conversation.contactId, provider: "INSTAGRAM", connectedAccountId: connectedAccount.id }
+    where: { contactId: message.conversation.contactId, provider: connectedAccount.provider, connectedAccountId: connectedAccount.id }
   });
 
   if (!identity) {

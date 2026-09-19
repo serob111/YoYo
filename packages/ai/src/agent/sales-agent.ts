@@ -1,6 +1,7 @@
 import {
   AiReplySchema,
-  ALL_TOOLS,
+  READ_TOOLS,
+  buildSubmitReplyTool,
   FindProductInputSchema,
   FindServiceInputSchema,
   GetContactLeadsInputSchema,
@@ -12,7 +13,7 @@ import {
   SearchKnowledgeInputSchema,
   type AiReply
 } from "../tools/definitions";
-import type { AIContentBlock, AIMessage, AIProvider, AIUsage } from "../types";
+import type { AIContentBlock, AIMessage, AIProvider, AIToolDefinition, AIUsage } from "../types";
 
 const DEFAULT_MAX_TOOL_TURNS = 6;
 const DEFAULT_MAX_TOKENS = 1024;
@@ -32,6 +33,13 @@ export interface ToolHandlers {
 export interface SalesAgentDeps {
   aiProvider: AIProvider;
   tools: ToolHandlers;
+  /**
+   * Vertical tool registry seam: additional named handlers beyond the fixed
+   * ToolHandlers set, keyed by tool name. Deliberately untyped/open (unlike
+   * ToolHandlers) since packages/ai doesn't know what verticals exist -
+   * callers (e.g. apps/worker-ai) supply these per the org's vertical.
+   */
+  extraTools?: Record<string, (input: unknown) => Promise<unknown>>;
 }
 
 export interface SalesAgentContext {
@@ -41,6 +49,10 @@ export interface SalesAgentContext {
   messages: AIMessage[];
   maxTokens?: number;
   maxToolTurns?: number;
+  /** Vertical tool registry seam: extra read-tool JSON definitions advertised to the model, beyond READ_TOOLS. */
+  extraToolDefs?: AIToolDefinition[];
+  /** Vertical tool registry seam: extra submit_reply action JSON variants advertised to the model, beyond the core 5. */
+  extraActionVariants?: Record<string, unknown>[];
 }
 
 export interface SalesAgentResult {
@@ -63,7 +75,12 @@ function addUsage(a: AIUsage, b: AIUsage): AIUsage {
   };
 }
 
-async function executeTool(tools: ToolHandlers, name: string, input: unknown): Promise<unknown> {
+async function executeTool(
+  tools: ToolHandlers,
+  extraTools: Record<string, (input: unknown) => Promise<unknown>> | undefined,
+  name: string,
+  input: unknown
+): Promise<unknown> {
   switch (name) {
     case "searchKnowledge":
       return tools.searchKnowledge(SearchKnowledgeInputSchema.parse(input));
@@ -83,8 +100,11 @@ async function executeTool(tools: ToolHandlers, name: string, input: unknown): P
       return tools.getPipelineStages(GetPipelineStagesInputSchema.parse(input));
     case "getTags":
       return tools.getTags(GetTagsInputSchema.parse(input));
-    default:
-      throw new Error(`Unknown tool: ${name}`);
+    default: {
+      const handler = extraTools?.[name];
+      if (!handler) throw new Error(`Unknown tool: ${name}`);
+      return handler(input);
+    }
   }
 }
 
@@ -101,12 +121,19 @@ export async function runSalesAgent(deps: SalesAgentDeps, context: SalesAgentCon
   let usage: AIUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 };
   let toolCallCount = 0;
 
+  // Identical to the old static ALL_TOOLS when no extras are supplied.
+  const tools: AIToolDefinition[] = [
+    ...READ_TOOLS,
+    ...(context.extraToolDefs ?? []),
+    buildSubmitReplyTool(context.extraActionVariants ?? [])
+  ];
+
   for (let turn = 0; turn < maxTurns; turn++) {
     const result = await deps.aiProvider.complete({
       model: context.model,
       system: context.systemPrompt,
       messages,
-      tools: ALL_TOOLS,
+      tools,
       maxTokens: context.maxTokens ?? DEFAULT_MAX_TOKENS
     });
     usage = addUsage(usage, result.usage);
@@ -134,7 +161,7 @@ export async function runSalesAgent(deps: SalesAgentDeps, context: SalesAgentCon
     for (const block of toolUseBlocks) {
       toolCallCount++;
       try {
-        const output = await executeTool(deps.tools, block.name, block.input);
+        const output = await executeTool(deps.tools, deps.extraTools, block.name, block.input);
         toolResults.push({ type: "tool_result", toolUseId: block.id, content: JSON.stringify(output) });
       } catch (error) {
         toolResults.push({

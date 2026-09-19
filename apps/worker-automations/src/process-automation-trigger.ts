@@ -4,10 +4,13 @@ export type ProcessAutomationTriggerResult = "processed" | "not_found";
 
 export interface AutomationTriggerContext {
   outboxEventId: string;
-  eventType: "lead.created" | "lead.stage_changed";
+  eventType: "lead.created" | "lead.stage_changed" | "property.activated";
   organizationId: string;
   leadId: string;
   payload: Record<string, unknown>;
+  // See AutomationTriggerJobData's comment - distinguishes multiple leads
+  // fanned out from the same outbox event. Defaults to outboxEventId.
+  triggerEventId?: string;
 }
 
 interface CreateFollowUpActionConfig {
@@ -37,7 +40,9 @@ export async function processAutomationTrigger(prisma: PrismaClient, context: Au
   const lead = await prisma.lead.findUnique({ where: { id: context.leadId } });
   if (!lead) return "not_found";
 
-  const triggerType = context.eventType === "lead.created" ? "LEAD_CREATED" : "LEAD_STAGE_CHANGED";
+  const triggerType =
+    context.eventType === "lead.created" ? "LEAD_CREATED" : context.eventType === "lead.stage_changed" ? "LEAD_STAGE_CHANGED" : "LISTING_MATCHED";
+  const triggerEventId = context.triggerEventId ?? context.outboxEventId;
   const automations = await prisma.automation.findMany({
     where: { organizationId: context.organizationId, triggerType, enabled: true }
   });
@@ -55,7 +60,7 @@ export async function processAutomationTrigger(prisma: PrismaClient, context: Au
           automationId: automation.id,
           organizationId: context.organizationId,
           leadId: lead.id,
-          triggerEventId: context.outboxEventId,
+          triggerEventId,
           status: "PENDING"
         }
       });

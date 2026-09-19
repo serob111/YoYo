@@ -35,6 +35,43 @@ export const AiActionSchema = z.discriminatedUnion("type", [
     leadId: z.string().min(1).optional(),
     delayMinutes: z.number().int().positive().max(43_200),
     message: z.string().min(1)
+  }),
+  // ---------------------------------------------------------------------
+  // Vertical Phase 3: Real Estate actions. Included here unconditionally
+  // (packages/ai stays vertical-agnostic) - what actually keeps these from
+  // reaching a non-real-estate org's agent is that its submit_reply tool
+  // schema never advertises them (see buildSubmitReplyTool below and
+  // apps/worker-ai/src/verticals/real-estate.ts). A model that was never
+  // shown these variants will never emit them, so parsing them
+  // unconditionally here is harmless.
+  // ---------------------------------------------------------------------
+  z.object({
+    type: z.literal("CREATE_VIEWING"),
+    propertyId: z.string().min(1),
+    leadId: z.string().min(1).optional(),
+    delayMinutes: z.number().int().positive().max(43_200),
+    notes: z.string().max(1000).optional()
+  }),
+  z.object({
+    type: z.literal("UPDATE_BUYER_PREFERENCES"),
+    // Required - the one field this action can't function correctly without,
+    // since it forces the model to always declare which search mode it's saving.
+    transactionType: z.enum(["SALE", "RENT"]),
+    maxPriceCents: z.number().int().positive().optional(),
+    currency: z.string().length(3).optional(),
+    minAreaSqm: z.number().positive().optional(),
+    bedrooms: z.number().int().nonnegative().optional(),
+    country: z.string().optional(),
+    city: z.string().optional(),
+    districts: z.array(z.string()).optional(),
+    propertyType: z.enum(["APARTMENT", "HOUSE", "COMMERCIAL", "LAND"]).optional(),
+    furnished: z.boolean().optional(),
+    moveInDate: z.string().optional(),
+    leaseDurationMonths: z.number().int().positive().optional(),
+    hasPets: z.boolean().optional(),
+    occupantCount: z.number().int().positive().optional(),
+    financingType: z.enum(["CASH", "MORTGAGE"]).optional(),
+    purchaseTimeframe: z.enum(["IMMEDIATE", "WITHIN_3_MONTHS", "WITHIN_6_MONTHS", "FLEXIBLE"]).optional()
   })
 ]);
 export type AiAction = z.infer<typeof AiActionSchema>;
@@ -124,58 +161,64 @@ export const READ_TOOLS: AIToolDefinition[] = [
   }
 ];
 
-export const SUBMIT_REPLY_TOOL: AIToolDefinition = {
-  name: "submit_reply",
-  description:
-    "Call this exactly once, as your final action, to send your reply to the customer. Do not call this until you have gathered whatever information you need via the other tools.",
-  inputSchema: {
+const CORE_ACTION_JSON_VARIANTS: Record<string, unknown>[] = [
+  { type: "object", properties: { type: { const: "REQUEST_HUMAN_TAKEOVER" } }, required: ["type"], additionalProperties: false },
+  {
+    type: "object",
+    properties: { type: { const: "CREATE_LEAD" }, title: { type: "string" } },
+    required: ["type", "title"],
+    additionalProperties: false
+  },
+  {
+    type: "object",
+    properties: { type: { const: "UPDATE_LEAD_STAGE" }, leadId: { type: "string" }, stageId: { type: "string" } },
+    required: ["type", "leadId", "stageId"],
+    additionalProperties: false
+  },
+  {
+    type: "object",
+    properties: { type: { const: "ADD_TAG" }, leadId: { type: "string" }, tagId: { type: "string" } },
+    required: ["type", "leadId", "tagId"],
+    additionalProperties: false
+  },
+  {
     type: "object",
     properties: {
-      reply: { type: "string", description: "The message to send to the customer, in their language." },
-      intent: { type: "string", enum: ["question", "pricing", "booking", "complaint", "other"] },
-      needsHuman: { type: "boolean", description: "True if this conversation needs a human to take over instead of (or in addition to) your reply." },
-      actions: {
-        type: "array",
-        description: "Structured follow-up actions for the backend to execute. Leave empty if none apply.",
-        items: {
-          oneOf: [
-            { type: "object", properties: { type: { const: "REQUEST_HUMAN_TAKEOVER" } }, required: ["type"], additionalProperties: false },
-            {
-              type: "object",
-              properties: { type: { const: "CREATE_LEAD" }, title: { type: "string" } },
-              required: ["type", "title"],
-              additionalProperties: false
-            },
-            {
-              type: "object",
-              properties: { type: { const: "UPDATE_LEAD_STAGE" }, leadId: { type: "string" }, stageId: { type: "string" } },
-              required: ["type", "leadId", "stageId"],
-              additionalProperties: false
-            },
-            {
-              type: "object",
-              properties: { type: { const: "ADD_TAG" }, leadId: { type: "string" }, tagId: { type: "string" } },
-              required: ["type", "leadId", "tagId"],
-              additionalProperties: false
-            },
-            {
-              type: "object",
-              properties: {
-                type: { const: "SCHEDULE_FOLLOW_UP" },
-                leadId: { type: "string", description: "Omit to use the customer's most recently created lead." },
-                delayMinutes: { type: "integer", minimum: 1, maximum: 43200 },
-                message: { type: "string", description: "The message to send the customer when the follow-up fires." }
-              },
-              required: ["type", "delayMinutes", "message"],
-              additionalProperties: false
-            }
-          ]
-        }
-      }
+      type: { const: "SCHEDULE_FOLLOW_UP" },
+      leadId: { type: "string", description: "Omit to use the customer's most recently created lead." },
+      delayMinutes: { type: "integer", minimum: 1, maximum: 43200 },
+      message: { type: "string", description: "The message to send the customer when the follow-up fires." }
     },
-    required: ["reply", "intent", "needsHuman"],
+    required: ["type", "delayMinutes", "message"],
     additionalProperties: false
   }
-};
+];
 
-export const ALL_TOOLS: AIToolDefinition[] = [...READ_TOOLS, SUBMIT_REPLY_TOOL];
+// Vertical tool registry seam: extraActionVariants lets a caller (e.g.
+// apps/worker-ai, which knows the org's vertical) advertise additional
+// actions to the model without packages/ai knowing anything about verticals.
+// Omitting it reproduces today's exact core-only tool exactly.
+export function buildSubmitReplyTool(extraActionVariants: Record<string, unknown>[] = []): AIToolDefinition {
+  return {
+    name: "submit_reply",
+    description:
+      "Call this exactly once, as your final action, to send your reply to the customer. Do not call this until you have gathered whatever information you need via the other tools.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reply: { type: "string", description: "The message to send to the customer, in their language." },
+        intent: { type: "string", enum: ["question", "pricing", "booking", "complaint", "other"] },
+        needsHuman: { type: "boolean", description: "True if this conversation needs a human to take over instead of (or in addition to) your reply." },
+        actions: {
+          type: "array",
+          description: "Structured follow-up actions for the backend to execute. Leave empty if none apply.",
+          items: { oneOf: [...CORE_ACTION_JSON_VARIANTS, ...extraActionVariants] }
+        }
+      },
+      required: ["reply", "intent", "needsHuman"],
+      additionalProperties: false
+    }
+  };
+}
+
+export const ALL_TOOLS: AIToolDefinition[] = [...READ_TOOLS, buildSubmitReplyTool()];

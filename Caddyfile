@@ -1,0 +1,14 @@
+# Staging reverse proxy. WEB_HOST/API_HOST come from .env.staging - point
+# them at your sslip.io hostnames (e.g. web.203-0-113-10.sslip.io) or a real
+# domain later, nothing else here changes. Caddy requests/renews Let's
+# Encrypt certificates for both automatically.
+
+{$WEB_HOST} {
+	reverse_proxy web:3000
+	header X-Robots-Tag "noindex, nofollow"
+}
+
+{$API_HOST} {
+	reverse_proxy api:4000
+	header X-Robots-Tag "noindex, nofollow"
+}

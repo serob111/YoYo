@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runSalesAgent, type SalesAgentDeps, type ToolHandlers } from "../agent/sales-agent";
+import { ALL_TOOLS } from "../tools/definitions";
 import type { AICompletionRequest, AICompletionResult, AIProvider } from "../types";
 
 function usage(inputTokens = 10, outputTokens = 5): AICompletionResult["usage"] {
@@ -166,5 +167,53 @@ describe("runSalesAgent", () => {
     expect(result.reply).toBeNull();
     expect(result.toolCallCount).toBe(3);
     expect(provider.requests).toHaveLength(3);
+  });
+
+  it("sends exactly ALL_TOOLS to the provider when no vertical extras are supplied", async () => {
+    const provider = new ScriptedAIProvider([
+      { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "submit_reply", input: { reply: "hi", intent: "other", needsHuman: false } }], usage: usage() }
+    ]);
+
+    await runSalesAgent(deps(provider), {
+      model: "claude-sonnet-5",
+      systemPrompt: "sys",
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }]
+    });
+
+    expect(provider.requests[0]?.tools).toEqual(ALL_TOOLS);
+  });
+
+  it("calls a vertical extra tool and advertises its definition and extra action variants to the provider", async () => {
+    const extraJsonVariant = { type: "object", properties: { type: { const: "CUSTOM_ACTION" } }, required: ["type"], additionalProperties: false };
+    const provider = new ScriptedAIProvider([
+      { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "searchProperties", input: { bedrooms: 2 } }], usage: usage() },
+      {
+        stopReason: "tool_use",
+        content: [{ type: "tool_use", id: "t2", name: "submit_reply", input: { reply: "Found some!", intent: "other", needsHuman: false, actions: [] } }],
+        usage: usage()
+      }
+    ]);
+
+    const searchProperties = async (input: unknown) => ({ received: input });
+    const result = await runSalesAgent(
+      { ...deps(provider), extraTools: { searchProperties } },
+      {
+        model: "claude-sonnet-5",
+        systemPrompt: "sys",
+        messages: [{ role: "user", content: [{ type: "text", text: "2 bedroom apartment?" }] }],
+        extraToolDefs: [{ name: "searchProperties", description: "Search listings.", inputSchema: { type: "object", properties: {} } }],
+        extraActionVariants: [extraJsonVariant]
+      }
+    );
+
+    expect(result.reply?.reply).toBe("Found some!");
+    const firstRequestTools = provider.requests[0]?.tools ?? [];
+    expect(firstRequestTools.map((t) => t.name)).toContain("searchProperties");
+    const submitReplyTool = firstRequestTools.find((t) => t.name === "submit_reply");
+    const { actions } = submitReplyTool?.inputSchema.properties as { actions: { items: { oneOf: unknown[] } } };
+    expect(actions.items.oneOf).toContainEqual(extraJsonVariant);
+
+    const secondMessage = provider.requests[1]?.messages.at(-1);
+    expect(secondMessage?.content[0]).toMatchObject({ type: "tool_result", content: JSON.stringify({ received: { bedrooms: 2 } }) });
   });
 });

@@ -64,7 +64,7 @@ export class MessagesService {
           organizationId,
           conversationId,
           connectedAccountId: connectedAccount.id,
-          provider: "INSTAGRAM",
+          provider: connectedAccount.provider,
           direction: "OUTBOUND",
           senderType: "HUMAN",
           senderUserId: actorUserId,

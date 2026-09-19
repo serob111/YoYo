@@ -65,6 +65,14 @@ describe("Tenant isolation", () => {
     expect(res.body.code).toBe("TENANT_ACCESS_DENIED");
   });
 
+  it("blocks reading another organization's dashboard stats", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/organizations/${organizationBId}/dashboard-stats`)
+      .set("Cookie", ownerA.cookieHeader)
+      .expect(403);
+    expect(res.body).not.toHaveProperty("newLeadsThisWeek");
+  });
+
   it("blocks listing another organization's members", async () => {
     const res = await request(app.getHttpServer())
       .get(`/organizations/${organizationBId}/members`)

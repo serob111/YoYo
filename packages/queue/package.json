@@ -6,7 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "queue:stats": "node dist/queue-stats.js"
   },
   "dependencies": {
     "bullmq": "^5.15.0",

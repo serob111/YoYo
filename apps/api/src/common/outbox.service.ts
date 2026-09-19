@@ -8,6 +8,7 @@ export type OutboxEventType =
   | "knowledge_chunk.embedding_pending"
   | "lead.created"
   | "lead.stage_changed"
+  | "property.activated"
   | "content.caption_generation_requested"
   | "content.image_enhancement_requested";
 

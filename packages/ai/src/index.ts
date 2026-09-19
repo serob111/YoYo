@@ -5,3 +5,4 @@ export * from "./agent/sales-agent";
 export * from "./anthropic/anthropic-provider";
 export * from "./voyage/voyage-embedding-provider";
 export * from "./gemini/gemini-image-provider";
+export * from "./fake/fake-latency-provider";

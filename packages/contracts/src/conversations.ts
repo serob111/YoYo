@@ -12,6 +12,7 @@ export const conversationSchema = z.object({
   assignedUserId: z.string().uuid().nullable(),
   automationState: conversationAutomationStateSchema,
   lastMessageAt: z.string().datetime().nullable(),
+  lastMessageText: z.string().nullable(),
   createdAt: z.string().datetime()
 });
 export type Conversation = z.infer<typeof conversationSchema>;

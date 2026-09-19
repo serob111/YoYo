@@ -35,6 +35,9 @@ export const apiEnvSchema = z.object({
   RATE_LIMIT_AUTH_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_AUTH_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
 
+  RATE_LIMIT_STOREFRONT_WINDOW_SECONDS: z.coerce.number().int().positive().default(600),
+  RATE_LIMIT_STOREFRONT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+
   // Off by default even in development - the outbox/follow-up dispatchers poll
   // every 500ms/30s and would otherwise flood the console with raw SQL on every
   // tick. Flip to "true" only when actively debugging a specific query.
@@ -59,7 +62,22 @@ export const apiEnvSchema = z.object({
   TIKTOK_CLIENT_SECRET: z.string().optional(),
   TIKTOK_OAUTH_REDIRECT_URI: z.string().url().optional(),
   // Local-stub override for manual testing, like META_GRAPH_BASE_URL below.
-  TIKTOK_API_BASE_URL: z.string().url().optional()
+  TIKTOK_API_BASE_URL: z.string().url().optional(),
+
+  // --- Billing (Stripe) ---
+  // Optional: the app boots and every other feature works without these. Only
+  // the billing checkout/portal/webhook routes require them, and they fail
+  // with a clear config error at call time (not at boot) if unset - same
+  // "app boots without it" pattern as META_*/TIKTOK_* above, so local dev and
+  // the rest of the product work before a real Stripe account exists.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Stripe Price ids for each Plan.key - looked up by key at checkout time
+  // rather than stored on the Plan row itself, so pointing at a different
+  // Stripe mode/account (test vs live) is an env change, not a migration.
+  STRIPE_PRICE_ID_SOLO: z.string().optional(),
+  STRIPE_PRICE_ID_TEAM: z.string().optional(),
+  STRIPE_PRICE_ID_AGENCY: z.string().optional()
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -131,7 +149,14 @@ export const aiWorkerEnvSchema = coreWorkerEnvSchema.extend({
   // Org-level BusinessProfile.defaultModel overrides this; this is just the
   // fallback so the model is never hardcoded into the provider class itself.
   AI_DEFAULT_MODEL: z.string().default("claude-sonnet-5"),
-  AI_EMBEDDING_MODEL: z.string().default("voyage-4")
+  AI_EMBEDDING_MODEL: z.string().default("voyage-4"),
+  // Load-testing only: when set, worker-ai uses FakeLatencyAIProvider/
+  // FakeLatencyEmbeddingProvider (setTimeout-delayed canned responses, zero
+  // network calls, zero LLM spend) instead of the real Anthropic/Voyage
+  // providers - see packages/ai/src/fake. ANTHROPIC_API_KEY/VOYAGE_API_KEY are
+  // still required by this schema but go unused in that mode. Unset (the
+  // default) leaves real-provider behavior completely untouched.
+  AI_FAKE_LATENCY_MS: z.coerce.number().int().positive().optional()
 });
 export type AiWorkerEnv = z.infer<typeof aiWorkerEnvSchema>;
 export function loadAiWorkerEnv(source: NodeJS.ProcessEnv = process.env): AiWorkerEnv {

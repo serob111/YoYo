@@ -2,13 +2,41 @@ import type { Pipeline, PipelineStage, Prisma, PrismaClient } from "@prisma/clie
 
 const DEFAULT_PIPELINE_NAME = "Default Pipeline";
 
-const DEFAULT_STAGES = [
-  { name: "New", order: 0 },
-  { name: "Contacted", order: 1 },
-  { name: "Qualified", order: 2 },
-  { name: "Won", order: 3, isWon: true },
-  { name: "Lost", order: 4, isLost: true }
-];
+interface StagePreset {
+  name: string;
+  order: number;
+  isWon?: boolean;
+  isLost?: boolean;
+}
+
+// Vertical-specific default stage presets. Kept as a small local map rather
+// than a dependency on @yoyo/verticals - this is the one place
+// packages/database needs vertical awareness, and it's a plain lookup table,
+// not shared nav/config. Falls back to "core" for null/unrecognized verticals,
+// matching packages/verticals' own getVerticalConfig fallback.
+const PIPELINE_STAGE_PRESETS: Record<string, StagePreset[]> = {
+  core: [
+    { name: "New", order: 0 },
+    { name: "Contacted", order: 1 },
+    { name: "AI Qualifying", order: 2 },
+    { name: "Qualified", order: 3 },
+    { name: "Nurture", order: 4 },
+    { name: "Won", order: 5, isWon: true },
+    { name: "Lost", order: 6, isLost: true }
+  ],
+  real_estate: [
+    { name: "New Lead", order: 0 },
+    { name: "AI Qualifying", order: 1 },
+    { name: "Property Matching", order: 2 },
+    { name: "Properties Sent", order: 3 },
+    { name: "Viewing Requested", order: 4 },
+    { name: "Viewing Scheduled", order: 5 },
+    { name: "Negotiation", order: 6 },
+    { name: "Nurture", order: 7 },
+    { name: "Won", order: 8, isWon: true },
+    { name: "Lost", order: 9, isLost: true }
+  ]
+};
 
 export type PipelineWithStages = Pipeline & { stages: PipelineStage[] };
 
@@ -30,12 +58,15 @@ export async function getOrCreateDefaultPipeline(
   });
   if (existing) return existing;
 
+  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { vertical: true } });
+  const stages = PIPELINE_STAGE_PRESETS[organization?.vertical ?? ""] ?? PIPELINE_STAGE_PRESETS.core!;
+
   try {
     return await prisma.pipeline.create({
       data: {
         organizationId,
         name: DEFAULT_PIPELINE_NAME,
-        stages: { create: DEFAULT_STAGES }
+        stages: { create: stages }
       },
       include: { stages: { orderBy: { order: "asc" } } }
     });

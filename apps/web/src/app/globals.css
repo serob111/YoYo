@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -43,69 +44,69 @@
 @layer base {
   :root {
 
-    --background: oklch(1 0 0);
+    --background: #fbfaf6;
 
-    --foreground: oklch(0.145 0 0);
+    --foreground: #111423;
 
-    --card: oklch(1 0 0);
+    --card: #fffefa;
 
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: #111423;
 
-    --popover: oklch(1 0 0);
+    --popover: #fffefa;
 
-    --popover-foreground: oklch(0.145 0 0);
+    --popover-foreground: #111423;
 
-    --primary: oklch(0.205 0 0);
+    --primary: #ffc800;
 
-    --primary-foreground: oklch(0.985 0 0);
+    --primary-foreground: #111423;
 
-    --secondary: oklch(0.97 0 0);
+    --secondary: #fff3c4;
 
-    --secondary-foreground: oklch(0.205 0 0);
+    --secondary-foreground: #111423;
 
-    --muted: oklch(0.97 0 0);
+    --muted: #f5f5f3;
 
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: #66728d;
 
-    --accent: oklch(0.97 0 0);
+    --accent: #fff3c4;
 
-    --accent-foreground: oklch(0.205 0 0);
+    --accent-foreground: #111423;
 
-    --destructive: oklch(0.577 0.245 27.325);
+    --destructive: #b3432f;
 
-    --border: oklch(0.922 0 0);
+    --border: #e7e5de;
 
-    --input: oklch(0.922 0 0);
+    --input: #e3e3df;
 
-    --ring: oklch(0.708 0 0);
+    --ring: #ffc800;
 
-    --chart-1: oklch(0.87 0 0);
+    --chart-1: #ffc800;
 
-    --chart-2: oklch(0.556 0 0);
+    --chart-2: #41a552;
 
-    --chart-3: oklch(0.439 0 0);
+    --chart-3: #32415e;
 
-    --chart-4: oklch(0.371 0 0);
+    --chart-4: #df3e93;
 
-    --chart-5: oklch(0.269 0 0);
+    --chart-5: #66728d;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    --sidebar: oklch(0.985 0 0);
+    --sidebar: #fffefa;
 
-    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-foreground: #111423;
 
-    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary: #ffc800;
 
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary-foreground: #111423;
 
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent: #fff3c4;
 
-    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-accent-foreground: #111423;
 
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: #e7e5de;
 
-    --sidebar-ring: oklch(0.708 0 0)
+    --sidebar-ring: #ffc800
   }
   .dark {
 

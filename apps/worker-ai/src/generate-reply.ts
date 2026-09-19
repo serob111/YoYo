@@ -1,11 +1,18 @@
 import { getOrCreateDefaultPipeline, resolveNextSendTime, type Prisma, type PrismaClient } from "@yoyo/database";
 import { calculateCostCents, runSalesAgent, type AiAction, type AIMessage, type AIProvider, type EmbeddingProvider, type ToolHandlers } from "@yoyo/ai";
+import { REAL_ESTATE_ACTION_VARIANTS, REAL_ESTATE_PROMPT_INSTRUCTIONS, REAL_ESTATE_TOOL_DEFS, buildRealEstateToolHandlers } from "./verticals/real-estate";
 
 export type GenerateAiReplyResult = "sent" | "skipped" | "not_found" | "cost_capped" | "failed";
 
 const HISTORY_SIZE = 20;
 
-function buildSystemPrompt(businessName: string, description: string | null, tone: string | null, timezone: string): string {
+function buildSystemPrompt(
+  businessName: string,
+  description: string | null,
+  tone: string | null,
+  timezone: string,
+  verticalInstructions: string | null
+): string {
   return [
     `You are a helpful sales assistant for ${businessName}, replying to a customer over Instagram DM.`,
     description ? `About the business: ${description}` : null,
@@ -14,6 +21,7 @@ function buildSystemPrompt(businessName: string, description: string | null, ton
     "Use the available tools to look up real product, service, and knowledge-base information before answering - never invent prices, availability, or policies.",
     "Reply in the same language the customer is writing in.",
     "If the customer shows buying intent, check getContactLeads first to avoid creating a duplicate lead, then propose CREATE_LEAD if none fits. Use UPDATE_LEAD_STAGE to reflect real progress. Only tag via ADD_TAG using an id from getTags - never invent a new tag name. If it would help to check back later (e.g. the customer needs time to decide, or you promised to follow up), propose SCHEDULE_FOLLOW_UP with a delay in minutes and the message to send then - you can omit leadId if you just created the lead in this same reply.",
+    verticalInstructions,
     "You must end your turn by calling submit_reply exactly once with your final answer - do not call it more than once, and do not answer in plain text."
   ]
     .filter((line): line is string => line !== null)
@@ -217,6 +225,76 @@ async function applyAiActions(
         });
         break;
       }
+
+      // Vertical Phase 3: Real Estate actions. Unreachable for a non-real-estate
+      // org's agent (it was never told these actions exist), but validated
+      // exactly like every other action here regardless.
+      case "CREATE_VIEWING": {
+        const property = await tx.property.findUnique({ where: { id: action.propertyId } });
+        if (!property || property.organizationId !== context.organizationId) break;
+
+        const lead = action.leadId
+          ? await tx.lead.findUnique({ where: { id: action.leadId } })
+          : await tx.lead.findFirst({ where: { organizationId: context.organizationId, contactId: context.contactId }, orderBy: { createdAt: "desc" } });
+        if (!lead || lead.organizationId !== context.organizationId) break;
+
+        const requestedAt = new Date(Date.now() + action.delayMinutes * 60_000);
+        const scheduledFor = resolveNextSendTime(requestedAt, context.timezone, context.businessHours);
+        await tx.viewing.create({
+          data: {
+            organizationId: context.organizationId,
+            propertyId: property.id,
+            leadId: lead.id,
+            scheduledFor,
+            notes: action.notes ?? null
+          }
+        });
+        break;
+      }
+
+      case "UPDATE_BUYER_PREFERENCES": {
+        await tx.buyerPreference.upsert({
+          where: { contactId_transactionType: { contactId: context.contactId, transactionType: action.transactionType } },
+          create: {
+            organizationId: context.organizationId,
+            contactId: context.contactId,
+            transactionType: action.transactionType,
+            maxPriceCents: action.maxPriceCents ?? null,
+            ...(action.currency !== undefined ? { currency: action.currency } : {}),
+            minAreaSqm: action.minAreaSqm ?? null,
+            bedrooms: action.bedrooms ?? null,
+            country: action.country ?? null,
+            city: action.city ?? null,
+            districts: action.districts ?? [],
+            propertyType: action.propertyType ?? null,
+            furnished: action.furnished ?? null,
+            moveInDate: action.moveInDate ? new Date(action.moveInDate) : null,
+            leaseDurationMonths: action.leaseDurationMonths ?? null,
+            hasPets: action.hasPets ?? null,
+            occupantCount: action.occupantCount ?? null,
+            financingType: action.financingType ?? null,
+            purchaseTimeframe: action.purchaseTimeframe ?? null
+          },
+          update: {
+            ...(action.maxPriceCents !== undefined ? { maxPriceCents: action.maxPriceCents } : {}),
+            ...(action.currency !== undefined ? { currency: action.currency } : {}),
+            ...(action.minAreaSqm !== undefined ? { minAreaSqm: action.minAreaSqm } : {}),
+            ...(action.bedrooms !== undefined ? { bedrooms: action.bedrooms } : {}),
+            ...(action.country !== undefined ? { country: action.country } : {}),
+            ...(action.city !== undefined ? { city: action.city } : {}),
+            ...(action.districts !== undefined ? { districts: action.districts } : {}),
+            ...(action.propertyType !== undefined ? { propertyType: action.propertyType } : {}),
+            ...(action.furnished !== undefined ? { furnished: action.furnished } : {}),
+            ...(action.moveInDate !== undefined ? { moveInDate: new Date(action.moveInDate) } : {}),
+            ...(action.leaseDurationMonths !== undefined ? { leaseDurationMonths: action.leaseDurationMonths } : {}),
+            ...(action.hasPets !== undefined ? { hasPets: action.hasPets } : {}),
+            ...(action.occupantCount !== undefined ? { occupantCount: action.occupantCount } : {}),
+            ...(action.financingType !== undefined ? { financingType: action.financingType } : {}),
+            ...(action.purchaseTimeframe !== undefined ? { purchaseTimeframe: action.purchaseTimeframe } : {})
+          }
+        });
+        break;
+      }
     }
   }
 
@@ -261,6 +339,9 @@ export async function generateAiReply(
   const businessProfile = await prisma.businessProfile.findUnique({ where: { organizationId } });
   const model = businessProfile?.defaultModel ?? defaultModel;
 
+  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { vertical: true } });
+  const isRealEstate = organization?.vertical === "real_estate";
+
   if (businessProfile?.monthlyCostCapCents != null) {
     const startOfMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
     const spent = await prisma.aiResponse.aggregate({
@@ -297,16 +378,23 @@ export async function generateAiReply(
   });
 
   const agentResult = await runSalesAgent(
-    { aiProvider, tools: buildToolHandlers(prisma, embeddingProvider, organizationId, conversation.contactId) },
+    {
+      aiProvider,
+      tools: buildToolHandlers(prisma, embeddingProvider, organizationId, conversation.contactId),
+      extraTools: isRealEstate ? buildRealEstateToolHandlers(prisma, organizationId) : undefined
+    },
     {
       model,
       systemPrompt: buildSystemPrompt(
         businessProfile?.businessName ?? "the business",
         businessProfile?.description ?? null,
         businessProfile?.tone ?? null,
-        businessProfile?.timezone ?? "UTC"
+        businessProfile?.timezone ?? "UTC",
+        isRealEstate ? REAL_ESTATE_PROMPT_INSTRUCTIONS : null
       ),
-      messages: toAgentMessages(history.reverse())
+      messages: toAgentMessages(history.reverse()),
+      extraToolDefs: isRealEstate ? REAL_ESTATE_TOOL_DEFS : undefined,
+      extraActionVariants: isRealEstate ? REAL_ESTATE_ACTION_VARIANTS : undefined
     }
   );
 
@@ -379,7 +467,7 @@ export async function generateAiReply(
       where: { id: conversation.id },
       data: {
         lastMessageAt: new Date(),
-        ...(requestedHumanTakeover ? { automationState: "PAUSED" as const } : {})
+        ...(requestedHumanTakeover || reply.needsHuman ? { automationState: "PAUSED" as const } : {})
       }
     });
 

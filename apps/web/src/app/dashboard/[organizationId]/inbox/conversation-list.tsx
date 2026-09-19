@@ -2,8 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { useConversations } from "@/lib/conversations-hooks";
-import { ProviderBadge } from "@/components/provider-badge";
 import { AutomationStateBadge } from "@/components/automation-state-badge";
+import { ChannelAvatar } from "@/components/channel-avatar";
 import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,18 +41,23 @@ export function ConversationList({
           key={conversation.id}
           onClick={() => onSelect(conversation.id)}
           className={cn(
-            "flex flex-col gap-1 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted",
-            selectedConversationId === conversation.id && "bg-muted"
+            "flex items-start gap-3 border-b border-border px-3.5 py-3 text-left transition-colors hover:bg-secondary/60",
+            selectedConversationId === conversation.id && "bg-secondary"
           )}
         >
-          <div className="flex items-center justify-between">
-            <span className="truncate text-sm font-medium">{conversation.contactDisplayName}</span>
-            <RelativeTime date={conversation.lastMessageAt} />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ProviderBadge provider={conversation.provider} />
-            <AutomationStateBadge state={conversation.automationState} />
-            {conversation.assignedUserId && <span className="text-xs text-muted-foreground">Assigned</span>}
+          <ChannelAvatar name={conversation.contactDisplayName} provider={conversation.provider} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-sm font-semibold">{conversation.contactDisplayName}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                <RelativeTime date={conversation.lastMessageAt} />
+              </span>
+            </div>
+            {conversation.lastMessageText && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{conversation.lastMessageText}</p>}
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <AutomationStateBadge state={conversation.automationState} />
+              {conversation.assignedUserId && <span className="text-xs text-muted-foreground">Assigned</span>}
+            </div>
           </div>
         </button>
       ))}

@@ -9,6 +9,8 @@ coverage/
 *.tsbuildinfo
 .env
 .env.*.local
+.env.staging
+!.env.staging.example
 .DS_Store
 Thumbs.db
 apps/**/generated/
@@ -17,3 +19,4 @@ packages/database/prisma/migrations/**/migration.sql.bak
 .vscode/*
 !.vscode/extensions.json
 .claude/
+dont-read.md

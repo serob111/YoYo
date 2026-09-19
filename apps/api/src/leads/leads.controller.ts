@@ -30,9 +30,11 @@ export class LeadsController {
     @Param("organizationId") organizationId: string,
     @Query("cursor") cursor?: string,
     @Query("stageId") stageId?: string,
-    @Query("contactId") contactId?: string
+    @Query("contactId") contactId?: string,
+    @Query("search") search?: string,
+    @Query("intent") intent?: string
   ) {
-    return this.leads.list(organizationId, { stageId, contactId }, cursor);
+    return this.leads.list(organizationId, { stageId, contactId, search, intent }, cursor);
   }
 
   @Get(":leadId")

@@ -62,7 +62,15 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
-    this.timer = setInterval(() => void this.tick(), POLL_INTERVAL_MS);
+    // tick() rejecting (e.g. a batch exceeding Prisma's interactive-transaction
+    // timeout under load) must never become an unhandled rejection here - that
+    // would crash the whole API process, not just this poller. Log and let the
+    // next interval retry instead.
+    this.timer = setInterval(() => {
+      this.tick().catch((error: unknown) => {
+        this.logger.error("Outbox dispatch tick failed", error instanceof Error ? error.stack : error);
+      });
+    }, POLL_INTERVAL_MS);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -146,6 +154,10 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
           requestId
         });
         return;
+      case "property.activated":
+        if (!row.organizationId) throw new Error(`Outbox row ${row.id} of type ${row.eventType} is missing organizationId`);
+        await this.dispatchListingMatched(row.id, row.organizationId, row.aggregateId, requestId);
+        return;
       case "content.caption_generation_requested":
         await enqueueCaptionGeneration(this.contentGenerationQueue, {
           contentItemId: row.aggregateId,
@@ -165,6 +177,66 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
         const exhaustiveCheck: never = row.eventType;
         throw new Error(`Unknown outbox event type: ${exhaustiveCheck}`);
       }
+    }
+  }
+
+  /**
+   * Inverts searchProperties' filter logic (apps/worker-ai/src/verticals/
+   * real-estate.ts) to find saved BuyerPreference rows this newly-ACTIVE
+   * property satisfies, then resolves each matched contact's most-recent
+   * lead (same fallback SCHEDULE_FOLLOW_UP already uses) - skipping contacts
+   * with no lead yet, since there's nothing to attach a LISTING_MATCHED
+   * automation run to. Cheap no-op when the org has no enabled
+   * LISTING_MATCHED automation, so this never runs the matching query for
+   * orgs that haven't set one up.
+   */
+  private async dispatchListingMatched(outboxEventId: string, organizationId: string, propertyId: string, requestId: string): Promise<void> {
+    const hasListingMatchedAutomation = await this.prisma.client.automation.findFirst({
+      where: { organizationId, triggerType: "LISTING_MATCHED", enabled: true },
+      select: { id: true }
+    });
+    if (!hasListingMatchedAutomation) return;
+
+    const property = await this.prisma.client.property.findUnique({ where: { id: propertyId } });
+    if (!property || property.organizationId !== organizationId) return;
+
+    const matches = await this.prisma.client.buyerPreference.findMany({
+      where: {
+        organizationId,
+        transactionType: property.transactionType,
+        AND: [
+          property.priceCents != null ? { OR: [{ minPriceCents: null }, { minPriceCents: { lte: property.priceCents } }] } : {},
+          property.priceCents != null ? { OR: [{ maxPriceCents: null }, { maxPriceCents: { gte: property.priceCents } }] } : {},
+          property.areaSqm != null ? { OR: [{ minAreaSqm: null }, { minAreaSqm: { lte: property.areaSqm } }] } : {},
+          property.bedrooms != null ? { OR: [{ bedrooms: null }, { bedrooms: { lte: property.bedrooms } }] } : {},
+          property.country ? { OR: [{ country: null }, { country: property.country }] } : {},
+          property.city ? { OR: [{ city: null }, { city: property.city }] } : {},
+          property.district ? { OR: [{ districts: { isEmpty: true } }, { districts: { has: property.district } }] } : {},
+          { OR: [{ propertyType: null }, { propertyType: property.propertyType }] }
+        ]
+      },
+      select: { contactId: true }
+    });
+    if (matches.length === 0) return;
+
+    // A contact can only have one BuyerPreference per transactionType (unique
+    // constraint), so contactIds here are already distinct.
+    for (const match of matches) {
+      const lead = await this.prisma.client.lead.findFirst({
+        where: { organizationId, contactId: match.contactId },
+        orderBy: { createdAt: "desc" }
+      });
+      if (!lead) continue;
+
+      await enqueueAutomationTrigger(this.automationsQueue, {
+        outboxEventId,
+        eventType: "property.activated",
+        organizationId,
+        leadId: lead.id,
+        payload: { requestId, propertyId },
+        requestId,
+        triggerEventId: `${outboxEventId}__${lead.id}`
+      });
     }
   }
 }
