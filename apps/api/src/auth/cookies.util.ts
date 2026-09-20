@@ -10,9 +10,13 @@ import { generateOpaqueToken } from "./token.util";
 // (already true outside development). In development, web/api share
 // `localhost` (different ports only, which is same-site), so Lax is correct
 // and works without HTTPS.
-function crossSiteCookieOptions(env: ApiEnv): Pick<CookieOptions, "secure" | "sameSite"> {
+function crossSiteCookieOptions(env: ApiEnv): Pick<CookieOptions, "secure" | "sameSite" | "domain"> {
   const isDevelopment = env.NODE_ENV === "development";
-  return { secure: !isDevelopment, sameSite: isDevelopment ? "lax" : "none" };
+  return {
+    secure: !isDevelopment,
+    sameSite: isDevelopment ? "lax" : "none",
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {})
+  };
 }
 
 export function setSessionCookie(res: Response, env: ApiEnv, rawSessionToken: string): void {
@@ -25,8 +29,12 @@ export function setSessionCookie(res: Response, env: ApiEnv, rawSessionToken: st
 }
 
 export function clearSessionCookie(res: Response, env: ApiEnv): void {
-  res.clearCookie(env.SESSION_COOKIE_NAME, { path: "/" });
-  res.clearCookie(env.CSRF_COOKIE_NAME, { path: "/" });
+  // clearCookie must be called with the same Domain the cookie was set with,
+  // or the browser treats it as clearing a different (non-existent) cookie
+  // and the original one lingers.
+  const domainOption = env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {};
+  res.clearCookie(env.SESSION_COOKIE_NAME, { path: "/", ...domainOption });
+  res.clearCookie(env.CSRF_COOKIE_NAME, { path: "/", ...domainOption });
 }
 
 export function setCsrfCookie(res: Response, env: ApiEnv): void {

@@ -20,6 +20,16 @@ export const apiEnvSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(24 * 30),
 
   CSRF_COOKIE_NAME: z.string().default("yoyo_csrf"),
+  // Unset in local dev (web/api share plain "localhost", no cross-subdomain
+  // concern). Required whenever web and api are deployed on sibling
+  // subdomains of a shared parent (e.g. "web.<ip>.sslip.io" /
+  // "api.<ip>.sslip.io") - without an explicit Domain, both cookies default
+  // to the exact host that set them, so the CSRF cookie (deliberately not
+  // HttpOnly, so frontend JS can read it) is invisible to document.cookie on
+  // the web origin, and every CSRF-guarded POST/PATCH/DELETE 403s. Set to
+  // e.g. ".18-195-193-209.sslip.io" (leading dot optional, RFC 6265 treats
+  // it the same either way) to share both cookies across the parent domain.
+  COOKIE_DOMAIN: z.string().optional(),
 
   MAGIC_LINK_TTL_MINUTES: z.coerce.number().int().positive().default(30),
 
