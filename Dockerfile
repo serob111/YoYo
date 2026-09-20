@@ -29,6 +29,12 @@ RUN npx turbo prune "${APP_NAME}" --docker
 
 FROM base AS builder
 ARG APP_NAME
+# Next.js inlines NEXT_PUBLIC_* vars into the client bundle at build time, not
+# read at container startup like every other env var here - so it has to be
+# set before `turbo run build` runs, not just at deploy time. Only @yoyo/web
+# reads this; harmless no-op ARG/ENV for every other app.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 WORKDIR /app
 # Install first from the pruned package.json/lockfile only - this layer is
 # cached across builds unless dependencies actually change.

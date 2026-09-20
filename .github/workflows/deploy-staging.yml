@@ -37,8 +37,11 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          # NEXT_PUBLIC_API_URL only matters for web (see Dockerfile) - the
+          # empty value for every other app is inert.
           build-args: |
             APP_NAME=@yoyo/${{ matrix.app }}
+            NEXT_PUBLIC_API_URL=${{ matrix.app == 'web' && vars.STAGING_API_URL || '' }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/yoyo-${{ matrix.app }}:latest
