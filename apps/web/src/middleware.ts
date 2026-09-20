@@ -19,7 +19,7 @@ function unauthorized(): NextResponse {
 // Meta/TikTok app-review reviewers (and anyone else) need to fetch these
 // without credentials - a Terms/Privacy URL that 401s isn't usable as an
 // app-review URL.
-const PUBLIC_PATHS = new Set(["/terms", "/privacy"]);
+const PUBLIC_PATHS = new Set(["/terms", "/privacy", "/tiktokukITAicCNeDfuBJ080Eu7t2vt5K44s1R.txt"]);
 
 export function middleware(request: NextRequest): NextResponse {
   if (BASIC_AUTH_USER && BASIC_AUTH_PASSWORD && !PUBLIC_PATHS.has(request.nextUrl.pathname)) {
