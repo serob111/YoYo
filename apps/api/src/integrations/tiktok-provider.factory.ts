@@ -12,8 +12,12 @@ export class TikTokProviderFactory {
     if (!this.env.TIKTOK_CLIENT_KEY || !this.env.TIKTOK_CLIENT_SECRET) {
       throw new ProviderNotConfiguredError("TikTok");
     }
+    // TIKTOK_API_BASE_URL is a bare optional (no schema default, unlike
+    // Instagram's META_GRAPH_API_VERSION) - spreading `apiBaseUrl: undefined`
+    // in explicitly would overwrite DEFAULT_CONFIG's real default with
+    // literal undefined, not fall through to it.
     return new TikTokConnectionProvider(this.env.TIKTOK_CLIENT_KEY, this.env.TIKTOK_CLIENT_SECRET, {
-      apiBaseUrl: this.env.TIKTOK_API_BASE_URL
+      ...(this.env.TIKTOK_API_BASE_URL ? { apiBaseUrl: this.env.TIKTOK_API_BASE_URL } : {})
     });
   }
 
