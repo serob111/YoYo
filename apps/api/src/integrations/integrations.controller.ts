@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Inject, Param, Query, Res, UseGuards } from "@nestjs/common";
+import { Controller, Delete, Get, Inject, Logger, Param, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import type { ApiEnv } from "@yoyo/config";
 import { SessionGuard } from "../auth/session.guard";
@@ -52,6 +52,8 @@ export class TikTokIntegrationsController {
 // from the signed state), mirroring InstagramOAuthCallbackController.
 @Controller("integrations/tiktok")
 export class TikTokOAuthCallbackController {
+  private readonly logger = new Logger(TikTokOAuthCallbackController.name);
+
   constructor(
     private readonly oauthState: OAuthStateService,
     private readonly tiktokProviderFactory: TikTokProviderFactory,
@@ -90,7 +92,8 @@ export class TikTokOAuthCallbackController {
       });
 
       res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
-    } catch {
+    } catch (err) {
+      this.logger.error("TikTok OAuth callback failed", err instanceof Error ? err.stack : err);
       res.redirect(`${failureRedirect}?reason=connection_failed`);
     }
   }
@@ -100,6 +103,8 @@ export class TikTokOAuthCallbackController {
 // the signed state), so this lives on its own top-level route.
 @Controller("integrations/instagram")
 export class InstagramOAuthCallbackController {
+  private readonly logger = new Logger(InstagramOAuthCallbackController.name);
+
   constructor(
     private readonly oauthState: OAuthStateService,
     private readonly instagramProviderFactory: InstagramProviderFactory,
@@ -133,7 +138,8 @@ export class InstagramOAuthCallbackController {
       await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "INSTAGRAM", profile, tokens, capabilities);
 
       res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
-    } catch {
+    } catch (err) {
+      this.logger.error("Instagram OAuth callback failed", err instanceof Error ? err.stack : err);
       res.redirect(`${failureRedirect}?reason=connection_failed`);
     }
   }
