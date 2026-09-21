@@ -9,7 +9,11 @@ export const INSTAGRAM_OAUTH_SCOPES = ["instagram_business_basic", "instagram_bu
 interface ShortLivedTokenResponse {
   access_token: string;
   user_id: string;
-  permissions?: string;
+  // Observed as a string[] from the real Instagram Business Login token
+  // exchange endpoint, despite being commonly documented/assumed as a
+  // comma-separated string (as Facebook Login's older equivalent returns it)
+  // - accept either shape rather than trusting one.
+  permissions?: string | string[];
 }
 
 interface LongLivedTokenResponse {
@@ -74,7 +78,7 @@ export class InstagramConnectionProvider implements SocialConnectionProvider {
     return {
       accessToken: longLived.access_token,
       expiresAt: new Date(Date.now() + longLived.expires_in * 1000),
-      scopes: (shortLived.permissions ?? "").split(",").filter(Boolean)
+      scopes: Array.isArray(shortLived.permissions) ? shortLived.permissions : (shortLived.permissions ?? "").split(",").filter(Boolean)
     };
   }
 
