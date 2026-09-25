@@ -17,7 +17,7 @@ const VERTICAL_LABELS: Record<(typeof VERTICAL_IDS)[number], string> = {
 };
 
 export default function VerticalSettingsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);

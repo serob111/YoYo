@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 
 export function TopbarSearch({ organizationId }: { organizationId: string }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const router = useRouter();
   const [value, setValue] = useState("");
 

@@ -51,7 +51,7 @@ function Logo() {
 }
 
 function Header() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <header>
@@ -78,7 +78,7 @@ function Header() {
 }
 
 function Card({ home }: { home: Home }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [liked, setLiked] = useState(false);
   return (
     <article className={styles.card}>
@@ -102,7 +102,7 @@ function Card({ home }: { home: Home }) {
 }
 
 function Demo() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [filter, setFilter] = useState("Все");
   const visible = filter === "Все" ? homes : homes.filter((home) => home.tag === filter);
 
@@ -188,7 +188,7 @@ function Demo() {
 }
 
 export default function HomePage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return (
     <main id="top" className={`${styles.landing} ${dmSans.variable} ${manrope.variable}`}>
       <Header />

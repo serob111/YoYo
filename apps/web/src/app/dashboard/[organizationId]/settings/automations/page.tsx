@@ -59,7 +59,7 @@ function AutomationForm({
   onSubmit: (input: CreateAutomationInput) => void;
   isPending: boolean;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const { data: pipeline } = usePipeline(organizationId);
   const { data: tags } = useTags(organizationId);
 
@@ -231,7 +231,7 @@ function AutomationForm({
 }
 
 function ExecutionsList({ organizationId, automationId }: { organizationId: string; automationId: string }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, intlLocale } = useI18n();
   const { data: executions, isLoading } = useAutomationExecutions(organizationId, automationId, true);
   if (isLoading) return <Skeleton className="h-8 w-full" />;
   if (!executions || executions.length === 0) return <p className="text-xs text-muted-foreground">{translateText("No runs yet.")}</p>;
@@ -251,7 +251,7 @@ function ExecutionsList({ organizationId, automationId }: { organizationId: stri
 }
 
 export default function AutomationsSettingsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);

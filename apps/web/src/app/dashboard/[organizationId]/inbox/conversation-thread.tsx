@@ -26,7 +26,7 @@ export function ConversationThread({
   conversation: Conversation;
   currentUserId: string | undefined;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const { data: organization } = useOrganization(organizationId);
   const canReply = useCan(organization?.myRole, "replyConversation");
   const canTakeOver = useCan(organization?.myRole, "takeOverConversation");

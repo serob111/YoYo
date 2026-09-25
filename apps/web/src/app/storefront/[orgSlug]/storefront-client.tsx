@@ -26,7 +26,7 @@ export function StorefrontClient({
   organization: Storefront["organization"];
   initialProperties: StorefrontProperty[];
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [transactionFilter, setTransactionFilter] = useState<"ALL" | TransactionType>("ALL");
   const [typeFilter, setTypeFilter] = useState<"ALL" | PropertyType>("ALL");
   const [active, setActive] = useState<StorefrontProperty | null>(null);
@@ -125,7 +125,7 @@ export function StorefrontClient({
 }
 
 function PropertyCard({ property, onOpen }: { property: StorefrontProperty; onOpen: () => void }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, locale } = useI18n();
   const location = [property.district, property.city, property.country].filter(Boolean).join(", ");
   return (
     <article className={styles.card}>

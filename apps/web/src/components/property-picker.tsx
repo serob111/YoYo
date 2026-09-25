@@ -23,7 +23,7 @@ export function PropertyPicker({
   selected: PickedProperty | null;
   onSelect: (property: PickedProperty | null) => void;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [search, setSearch] = useState("");
   const { data } = useProperties(organizationId);
   const properties = data?.pages.flatMap((page) => page.items) ?? [];

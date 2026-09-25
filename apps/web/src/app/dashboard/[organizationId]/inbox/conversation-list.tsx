@@ -19,7 +19,7 @@ export function ConversationList({
   selectedConversationId: string | null;
   onSelect: (conversationId: string) => void;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useConversations(organizationId);
   const conversations = data?.pages.flatMap((page) => page.items) ?? [];
 

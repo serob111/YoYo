@@ -14,7 +14,7 @@ function StatusShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AcceptInvitePage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return (
     <Suspense
       fallback={
@@ -30,7 +30,7 @@ export default function AcceptInvitePage() {
 }
 
 function AcceptInviteInner() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);

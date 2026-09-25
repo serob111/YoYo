@@ -22,7 +22,7 @@ export default function TikTokOAuthErrorPage() {
 }
 
 function TikTokOAuthErrorContent() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") ?? "connection_failed";
   const { data: organizations } = useMyOrganizations();

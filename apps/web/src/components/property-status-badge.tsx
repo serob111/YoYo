@@ -24,6 +24,6 @@ const LABELS: Record<PropertyStatus, string> = {
 };
 
 export function PropertyStatusBadge({ status }: { status: PropertyStatus }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return <Badge className={cn(STYLES[status])}>{translateText(LABELS[status])}</Badge>;
 }

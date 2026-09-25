@@ -22,7 +22,7 @@ export default function InstagramOAuthErrorPage() {
 }
 
 function InstagramOAuthErrorContent() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") ?? "connection_failed";
   // No organizationId is available on this top-level redirect target - route

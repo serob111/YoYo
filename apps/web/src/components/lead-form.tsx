@@ -30,7 +30,7 @@ export function LeadForm({
   submitLabel: string;
   isPending: boolean;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const { data: organization } = useOrganization(organizationId);
   const isRealEstate = organization?.vertical === "real_estate";
 

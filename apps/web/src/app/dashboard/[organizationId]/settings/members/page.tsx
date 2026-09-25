@@ -9,7 +9,7 @@ import { useChangeMemberRole, useInviteMember, useMembers, useRemoveMember } fro
 import { ApiRequestError } from "@/lib/api-client";
 
 export default function MembersSettingsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data, isLoading } = useMembers(organizationId);

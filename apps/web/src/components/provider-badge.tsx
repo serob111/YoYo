@@ -9,6 +9,6 @@ const LABELS: Record<"INSTAGRAM" | "TIKTOK", string> = {
 };
 
 export function ProviderBadge({ provider }: { provider: "INSTAGRAM" | "TIKTOK" }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return <Badge variant="secondary">{translateText(LABELS[provider])}</Badge>;
 }

@@ -123,7 +123,7 @@ export function PropertyForm({
   submitLabel: string;
   isPending: boolean;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [values, setValues] = useState<PropertyFormValues>(() => toFormValues(property));
 
   function set<K extends keyof PropertyFormValues>(key: K, value: PropertyFormValues[K]) {

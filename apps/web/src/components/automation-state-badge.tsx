@@ -20,6 +20,6 @@ const LABELS: Record<ConversationAutomationState, string> = {
 };
 
 export function AutomationStateBadge({ state }: { state: ConversationAutomationState }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return <Badge className={cn(STYLES[state])}>{translateText(LABELS[state])}</Badge>;
 }

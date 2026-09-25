@@ -2,7 +2,7 @@ import { getI18n } from "@/lib/i18n/server";
 import styles from "./storefront.module.css";
 
 export default function StorefrontNotFound() {
-  const { t: translateText, locale, intlLocale } = getI18n();
+  const { t: translateText } = getI18n();
   return (
     <div className={styles.page}>
       <div className={styles.notFound}>

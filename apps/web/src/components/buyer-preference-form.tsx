@@ -96,7 +96,7 @@ export function BuyerPreferenceForm({
   onSubmit: (input: UpsertBuyerPreferenceInput) => void;
   isPending: boolean;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [values, setValues] = useState<BuyerPreferenceFormValues>(() => toFormValues(preference));
   const isRent = transactionType === "RENT";
 

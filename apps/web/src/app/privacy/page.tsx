@@ -10,7 +10,7 @@ export function generateMetadata(): Metadata {
 }
 
 export default function PrivacyPage() {
-  const { t: translateText, locale, intlLocale } = getI18n();
+  const { t: translateText } = getI18n();
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 text-slate-800">
       <h1 className="text-3xl font-semibold text-slate-900">{translateText("Privacy Policy")}</h1>

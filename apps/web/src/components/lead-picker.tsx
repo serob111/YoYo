@@ -20,7 +20,7 @@ export function LeadPicker({
   selected: PickedLead | null;
   onSelect: (lead: PickedLead | null) => void;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [search, setSearch] = useState("");
   const { data } = useLeads(organizationId, { search });
   const leads = data?.pages.flatMap((page) => page.items) ?? [];

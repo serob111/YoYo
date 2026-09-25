@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function KanbanCard({ organizationId, lead }: { organizationId: string; lead: LeadListItem }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { locale } = useI18n();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 
@@ -41,7 +41,7 @@ function KanbanCard({ organizationId, lead }: { organizationId: string; lead: Le
 }
 
 function KanbanColumn({ organizationId, stage }: { organizationId: string; stage: PipelineStageDto }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLeads(organizationId, { stageId: stage.id });
   const leads = data?.pages.flatMap((page) => page.items) ?? [];

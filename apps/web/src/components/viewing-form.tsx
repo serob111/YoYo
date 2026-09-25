@@ -22,7 +22,7 @@ export function ViewingForm({
   onSubmit: (input: CreateViewingInput) => void;
   isPending: boolean;
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [property, setProperty] = useState<PickedProperty | null>(fixedProperty ?? null);
   const [lead, setLead] = useState<PickedLead | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");

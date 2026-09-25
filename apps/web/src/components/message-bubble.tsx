@@ -22,7 +22,7 @@ const BUBBLE_STYLES: Record<Message["senderType"], string> = {
 };
 
 export function MessageBubble({ message }: { message: Message }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   if (message.senderType === "SYSTEM") {
     return <div className="my-1 text-center text-xs italic text-muted-foreground">{message.text}</div>;
   }

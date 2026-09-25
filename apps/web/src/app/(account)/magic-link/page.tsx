@@ -10,7 +10,7 @@ import { AccountShell } from "../account-shell";
 import styles from "../account.module.css";
 
 export default function MagicLinkRequestPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);

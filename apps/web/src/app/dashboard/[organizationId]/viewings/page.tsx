@@ -27,7 +27,7 @@ function toDatetimeLocal(iso: string): string {
 }
 
 function EditViewingForm({ viewing, onSubmit, isPending }: { viewing: ViewingListItem; onSubmit: (input: UpdateViewingInput) => void; isPending: boolean }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [scheduledFor, setScheduledFor] = useState(toDatetimeLocal(viewing.scheduledFor));
   const [notes, setNotes] = useState(viewing.notes ?? "");
 
@@ -56,7 +56,7 @@ function EditViewingForm({ viewing, onSubmit, isPending }: { viewing: ViewingLis
 }
 
 export default function ViewingsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);

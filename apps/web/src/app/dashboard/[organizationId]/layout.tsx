@@ -46,7 +46,7 @@ function roleLabel(role: string): string {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const pathname = usePathname();
   const router = useRouter();

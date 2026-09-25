@@ -12,7 +12,7 @@ import { AccountShell } from "../account-shell";
 import styles from "../account.module.css";
 
 export default function LoginPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

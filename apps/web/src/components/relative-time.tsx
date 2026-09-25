@@ -25,7 +25,7 @@ function formatRelative(date: Date, intlLocale: string, translateText: (text: st
 }
 
 export function RelativeTime({ date }: { date: string | Date | null | undefined }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, intlLocale } = useI18n();
   if (!date) return <span className="text-muted-foreground">—</span>;
   const parsed = typeof date === "string" ? new Date(date) : date;
   return (

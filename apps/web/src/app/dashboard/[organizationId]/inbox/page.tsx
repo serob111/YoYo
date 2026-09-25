@@ -13,7 +13,7 @@ import { ConversationList } from "./conversation-list";
 import { ConversationThread } from "./conversation-thread";
 
 export default function InboxPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const searchParams = useSearchParams();
   const organizationId = params.organizationId;

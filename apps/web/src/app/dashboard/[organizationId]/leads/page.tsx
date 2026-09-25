@@ -31,7 +31,7 @@ const LEAD_INTENT_LABELS: Record<LeadIntent, string> = {
 };
 
 export default function LeadsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, locale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const searchParams = useSearchParams();
   const organizationId = params.organizationId;

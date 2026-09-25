@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function ContactsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
