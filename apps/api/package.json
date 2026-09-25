@@ -53,6 +53,7 @@
     "@yoyo/worker-content": "workspace:*",
     "@yoyo/worker-messaging": "workspace:*",
     "@yoyo/worker-publishing": "workspace:*",
+    "@yoyo/worker-social-sync": "workspace:*",
     "@yoyo/worker-webhooks": "workspace:*",
     "eslint": "^8.57.1",
     "jest": "^29.7.0",

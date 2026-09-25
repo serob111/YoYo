@@ -13,10 +13,12 @@ import { usePipeline } from "@/lib/pipeline-hooks";
 import { useViewings } from "@/lib/viewings-hooks";
 import { useProperties } from "@/lib/properties-hooks";
 import { useConnectedAccounts, connectAccountHref } from "@/lib/integrations-hooks";
+import { useSetupStatus } from "@/lib/setup-status-hooks";
 import { formatCents, formatPrice } from "@/lib/format";
 import { InitialsAvatar } from "@/components/initials-avatar";
 import { PropertyArt } from "@/components/property-art";
 import { EmptyState } from "@/components/empty-state";
+import { GettingStartedPanel } from "@/components/getting-started-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ConversationList } from "./inbox/conversation-list";
@@ -45,7 +47,7 @@ function KpiCard({
   value: string;
   tone?: "warning";
 }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
       <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${tone === "warning" ? "bg-amber-500/15 text-amber-600" : "bg-primary/10 text-primary"}`}>
@@ -70,6 +72,13 @@ export default function DashboardHomePage() {
   const { data: connectedAccounts } = useConnectedAccounts(organizationId);
   const hasConnectedAccount = (connectedAccounts?.length ?? 0) > 0;
   const { data: stats } = useDashboardStats(organizationId);
+
+  const { data: setupStatus } = useSetupStatus(organizationId);
+  const [setupDismissed, setSetupDismissed] = useState(false);
+  useEffect(() => {
+    setSetupDismissed(typeof window !== "undefined" && window.localStorage.getItem(`yoyo:setup-dismissed:${organizationId}`) === "1");
+  }, [organizationId]);
+  const showGettingStarted = !!setupStatus && !setupStatus.complete && !setupDismissed;
 
   const { data: conversationsData, isLoading: conversationsLoading } = useConversations(organizationId);
   const conversations = conversationsData?.pages.flatMap((page) => page.items) ?? [];
@@ -102,6 +111,17 @@ export default function DashboardHomePage() {
 
   return (
     <div className="flex flex-col gap-5">
+      {showGettingStarted && (
+        <GettingStartedPanel
+          organizationId={organizationId}
+          setupStatus={setupStatus}
+          onDismiss={() => {
+            window.localStorage.setItem(`yoyo:setup-dismissed:${organizationId}`, "1");
+            setSetupDismissed(true);
+          }}
+        />
+      )}
+
       {stats && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard icon={UsersThree} label={translateText("New leads this week")} value={String(stats.newLeadsThisWeek)} />

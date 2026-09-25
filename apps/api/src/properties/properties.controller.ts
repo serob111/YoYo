@@ -34,6 +34,16 @@ export class PropertiesController {
     return this.properties.getOrThrow(organizationId, propertyId);
   }
 
+  @Get(":propertyId/media")
+  async getMedia(@Param("organizationId") organizationId: string, @Param("propertyId") propertyId: string) {
+    return this.properties.getMedia(organizationId, propertyId);
+  }
+
+  @Get(":propertyId/social-sources")
+  async getSocialSources(@Param("organizationId") organizationId: string, @Param("propertyId") propertyId: string) {
+    return this.properties.getSocialSources(organizationId, propertyId);
+  }
+
   @Post()
   @RequireCapability("manageCRM")
   @UseGuards(CsrfGuard)

@@ -170,6 +170,15 @@ services:
       args:
         APP_NAME: "@yoyo/worker-automations"
 
+  worker-social-sync:
+    <<: *app
+    image: ghcr.io/${GHCR_OWNER:-serob111}/yoyo-worker-social-sync:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: "@yoyo/worker-social-sync"
+
 volumes:
   postgres-data:
   redis-data:

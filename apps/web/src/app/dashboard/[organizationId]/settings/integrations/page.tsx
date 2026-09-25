@@ -3,7 +3,9 @@
 import { useI18n } from "@/lib/i18n/provider";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { CheckCircle, InstagramLogo } from "@phosphor-icons/react";
 import type { ConnectedAccount } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
 import { useCan } from "@/lib/permissions";
@@ -35,7 +37,7 @@ function capabilitySummary(account: ConnectedAccount): string {
 }
 
 function DisconnectButton({ account, organizationId }: { account: ConnectedAccount; organizationId: string }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const [open, setOpen] = useState(false);
   const disconnect = useDisconnectAccount(organizationId);
 
@@ -64,15 +66,40 @@ function DisconnectButton({ account, organizationId }: { account: ConnectedAccou
 }
 
 export default function IntegrationsSettingsPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
+  const searchParams = useSearchParams();
   const { data: organization } = useOrganization(organizationId);
   const { data: accounts, isLoading } = useConnectedAccounts(organizationId);
   const canManage = useCan(organization?.myRole, "manageIntegrations");
 
+  const justConnectedProvider = searchParams.get("connected");
+  const justConnectedAccountId = searchParams.get("accountId");
+  const justConnectedAccount = accounts?.find((a) => a.id === justConnectedAccountId);
+
   return (
     <div className="max-w-2xl">
+      {justConnectedProvider && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={22} weight="fill" className="shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">
+                {justConnectedProvider === "instagram" ? translateText("Instagram connected") : translateText("TikTok connected")}
+                {justConnectedAccount?.username && ` @${justConnectedAccount.username}`}
+              </p>
+              <p className="text-xs text-emerald-700">{translateText("New customer messages can now appear in your Inbox.")}</p>
+            </div>
+          </div>
+          {justConnectedProvider === "instagram" && (
+            <Button size="sm" nativeButton={false} render={<Link href={`/dashboard/${organizationId}/properties/import${justConnectedAccountId ? `?accountId=${justConnectedAccountId}` : ""}`} />}>
+              <InstagramLogo size={14} /> {translateText("Import existing properties")}
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{translateText("Integrations")}</h1>
         {canManage && (

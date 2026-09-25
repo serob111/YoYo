@@ -28,6 +28,11 @@ export function resolveTikTokCapabilities(scopes: string[], _accountType: string
     storyPublishing: false,
     draftUpload: false,
     analytics: false,
-    webhooks: false
+    webhooks: false,
+    // No TikTok API surface for reading an account's own existing videos is
+    // available to this app today - architecture (SocialMediaReaderProvider)
+    // is provider-agnostic and ready for this, but there is no
+    // TikTokMediaReaderProvider implementation, unlike Instagram.
+    mediaRead: false
   };
 }

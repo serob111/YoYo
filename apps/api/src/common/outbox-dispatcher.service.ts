@@ -6,6 +6,7 @@ import {
   createContentGenerationQueue,
   createKnowledgeEmbeddingsQueue,
   createOutboundMessagesQueue,
+  createSocialSyncQueue,
   createWebhookEventsQueue,
   enqueueAiResponse,
   enqueueAutomationTrigger,
@@ -13,6 +14,7 @@ import {
   enqueueImageEnhancement,
   enqueueKnowledgeEmbedding,
   enqueueOutboundMessage,
+  enqueueSocialSync,
   enqueueWebhookEvent
 } from "@yoyo/queue";
 import { PrismaService } from "./prisma.service";
@@ -48,6 +50,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly knowledgeEmbeddingsQueue;
   private readonly automationsQueue;
   private readonly contentGenerationQueue;
+  private readonly socialSyncQueue;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -59,6 +62,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     this.knowledgeEmbeddingsQueue = createKnowledgeEmbeddingsQueue(redis);
     this.automationsQueue = createAutomationsQueue(redis);
     this.contentGenerationQueue = createContentGenerationQueue(redis);
+    this.socialSyncQueue = createSocialSyncQueue(redis);
   }
 
   onModuleInit(): void {
@@ -81,6 +85,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
     await this.knowledgeEmbeddingsQueue.close();
     await this.automationsQueue.close();
     await this.contentGenerationQueue.close();
+    await this.socialSyncQueue.close();
   }
 
   /** Test-only: stop the automatic interval so tests can drive `tick()` deterministically. */
@@ -170,6 +175,13 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
           contentItemId: row.payload.contentItemId as string,
           mediaAssetId: row.aggregateId,
           instruction: row.payload.instruction as string,
+          requestId
+        });
+        return;
+      case "social_sync.requested":
+        await enqueueSocialSync(this.socialSyncQueue, {
+          socialSyncId: row.aggregateId,
+          connectedAccountId: row.payload.connectedAccountId as string,
           requestId
         });
         return;

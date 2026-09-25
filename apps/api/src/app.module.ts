@@ -32,6 +32,8 @@ import { PropertiesModule } from "./properties/properties.module";
 import { ViewingsModule } from "./viewings/viewings.module";
 import { BuyerPreferencesModule } from "./buyer-preferences/buyer-preferences.module";
 import { StorefrontModule } from "./storefront/storefront.module";
+import { SocialImportModule } from "./social-import/social-import.module";
+import { DemoModule } from "./demo/demo.module";
 
 @Module({
   imports: [
@@ -64,7 +66,9 @@ import { StorefrontModule } from "./storefront/storefront.module";
     PropertiesModule,
     ViewingsModule,
     BuyerPreferencesModule,
-    StorefrontModule
+    StorefrontModule,
+    SocialImportModule,
+    DemoModule
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }]
 })

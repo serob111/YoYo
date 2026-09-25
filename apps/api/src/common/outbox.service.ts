@@ -10,7 +10,8 @@ export type OutboxEventType =
   | "lead.stage_changed"
   | "property.activated"
   | "content.caption_generation_requested"
-  | "content.image_enhancement_requested";
+  | "content.image_enhancement_requested"
+  | "social_sync.requested";
 
 export interface RecordOutboxEventInput {
   organizationId?: string;

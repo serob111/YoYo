@@ -223,6 +223,24 @@ export function loadPublishingWorkerEnv(source: NodeJS.ProcessEnv = process.env)
   return loadWith(publishingWorkerEnvSchema, source);
 }
 
+// worker-social-sync: reads existing Instagram media (ENCRYPTION_KEY +
+// Graph API version/base-url override, same as worker-messaging) and runs AI
+// listing extraction (ANTHROPIC_API_KEY). Deliberately no AI_FAKE_LATENCY_MS
+// here - that switch returns a canned sales-agent reply shape, not a
+// listing-extraction shape, and extraction correctness is the point of this
+// worker; real Anthropic calls on a few dozen short captions cost cents.
+export const socialSyncWorkerEnvSchema = coreWorkerEnvSchema.extend({
+  ENCRYPTION_KEY: apiEnvSchema.shape.ENCRYPTION_KEY,
+  META_GRAPH_API_VERSION: apiEnvSchema.shape.META_GRAPH_API_VERSION,
+  META_GRAPH_BASE_URL: z.string().url().optional(),
+  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
+  AI_DEFAULT_MODEL: z.string().default("claude-sonnet-5")
+});
+export type SocialSyncWorkerEnv = z.infer<typeof socialSyncWorkerEnvSchema>;
+export function loadSocialSyncWorkerEnv(source: NodeJS.ProcessEnv = process.env): SocialSyncWorkerEnv {
+  return loadWith(socialSyncWorkerEnvSchema, source);
+}
+
 export const webEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url()
 });

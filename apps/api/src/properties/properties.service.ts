@@ -163,4 +163,20 @@ export class PropertiesService {
     await this.getOrThrow(organizationId, propertyId);
     await this.prisma.client.leadProperty.deleteMany({ where: { leadId, propertyId } });
   }
+
+  async getMedia(organizationId: string, propertyId: string) {
+    await this.getOrThrow(organizationId, propertyId);
+    return this.prisma.client.propertyMedia.findMany({ where: { organizationId, propertyId }, orderBy: { position: "asc" } });
+  }
+
+  // Denormalized propertyId on SocialMediaItem (set at import/link time) means
+  // this never needs to join through PropertyImportCandidate.
+  async getSocialSources(organizationId: string, propertyId: string) {
+    await this.getOrThrow(organizationId, propertyId);
+    return this.prisma.client.socialMediaItem.findMany({
+      where: { organizationId, propertyId },
+      orderBy: { postedAt: "desc" },
+      select: { id: true, provider: true, mediaType: true, caption: true, permalink: true, postedAt: true, thumbnailUrl: true }
+    });
+  }
 }

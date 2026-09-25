@@ -11,3 +11,4 @@ export * from "./automations";
 export * from "./content";
 export * from "./real-estate";
 export * from "./storefront";
+export * from "./social-import";

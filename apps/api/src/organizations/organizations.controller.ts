@@ -39,6 +39,12 @@ export class OrganizationsController {
     return this.organizations.getDashboardStats(organizationId);
   }
 
+  @Get(":organizationId/setup-status")
+  @UseGuards(TenantContextGuard)
+  async getSetupStatus(@Param("organizationId") organizationId: string) {
+    return this.organizations.getSetupStatus(organizationId);
+  }
+
   @Patch(":organizationId/vertical")
   @UseGuards(TenantContextGuard, CapabilityGuard, CsrfGuard)
   @RequireCapability("manageBilling")

@@ -2,10 +2,26 @@ import { z } from "zod";
 import { ORGANIZATION_ROLES } from "@yoyo/permissions";
 import { VERTICAL_IDS } from "@yoyo/verticals";
 
+// vertical is optional and validated against the real registry (same as
+// updateOrganizationVerticalSchema below) - omitted, it falls through to the
+// Prisma column default ("core"). The real-estate onboarding route is the
+// only caller that passes it explicitly; this keeps org creation generic
+// rather than forcing every programmatic Organization creation down one vertical.
 export const createOrganizationSchema = z.object({
-  name: z.string().min(1).max(200)
+  name: z.string().min(1).max(200),
+  vertical: z.enum(VERTICAL_IDS).optional()
 });
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
+
+export const setupStatusSchema = z.object({
+  agencyCreated: z.boolean(),
+  inventoryConfigured: z.boolean(),
+  socialConnected: z.boolean(),
+  firstLeadProcessed: z.boolean(),
+  firstMatchReviewed: z.boolean(),
+  complete: z.boolean()
+});
+export type SetupStatus = z.infer<typeof setupStatusSchema>;
 
 // Unlike organizationSchema.vertical below (deliberately loose - reads should
 // never reject on an org referencing an unregistered/legacy vertical id),

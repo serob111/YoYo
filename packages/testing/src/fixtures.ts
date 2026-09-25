@@ -17,9 +17,18 @@ import type {
   Prisma,
   PrismaClient,
   Property,
+  PropertyImportCandidate,
+  PropertyImportCandidateStatus,
   PropertyType,
   Provider,
-  Tag
+  SocialMediaAnalysisStatus,
+  SocialMediaImportStatus,
+  SocialMediaItem,
+  SocialMediaType,
+  SocialSync,
+  SocialSyncStatus,
+  Tag,
+  TransactionType
 } from "@yoyo/database";
 import { randomUUID } from "node:crypto";
 
@@ -236,6 +245,93 @@ export async function createTestProperty(
       organizationId: params.organizationId,
       title: params.title ?? "Test Property",
       propertyType: params.propertyType ?? "APARTMENT"
+    }
+  });
+}
+
+export async function createTestSocialMediaItem(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    connectedAccountId: string;
+    provider?: Provider;
+    providerMediaId?: string;
+    mediaType?: SocialMediaType;
+    caption?: string | null;
+    postedAt?: Date | null;
+    analysisStatus?: SocialMediaAnalysisStatus;
+    isPropertyRelated?: boolean | null;
+    analysisConfidence?: number | null;
+    analysisResult?: Prisma.InputJsonValue;
+    importStatus?: SocialMediaImportStatus;
+    candidateId?: string | null;
+    propertyId?: string | null;
+  }
+): Promise<SocialMediaItem> {
+  return prisma.socialMediaItem.create({
+    data: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      provider: params.provider ?? "INSTAGRAM",
+      providerMediaId: params.providerMediaId ?? `ig_${randomUUID()}`,
+      mediaType: params.mediaType ?? "IMAGE",
+      caption: params.caption ?? "Test caption",
+      postedAt: params.postedAt ?? new Date(),
+      analysisStatus: params.analysisStatus ?? "PENDING",
+      isPropertyRelated: params.isPropertyRelated ?? null,
+      analysisConfidence: params.analysisConfidence ?? null,
+      analysisResult: params.analysisResult,
+      importStatus: params.importStatus ?? "DISCOVERED",
+      candidateId: params.candidateId ?? null,
+      propertyId: params.propertyId ?? null
+    }
+  });
+}
+
+export async function createTestPropertyImportCandidate(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    connectedAccountId: string;
+    status?: PropertyImportCandidateStatus;
+    confidence?: number;
+    transactionType?: TransactionType;
+    propertyType?: PropertyType;
+    title?: string;
+    priceCents?: number | null;
+    currency?: string;
+    city?: string | null;
+    bedrooms?: number | null;
+    possibleExistingPropertyId?: string | null;
+  }
+): Promise<PropertyImportCandidate> {
+  return prisma.propertyImportCandidate.create({
+    data: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      status: params.status ?? "PENDING_REVIEW",
+      confidence: params.confidence ?? 0.8,
+      transactionType: params.transactionType ?? "SALE",
+      propertyType: params.propertyType ?? "APARTMENT",
+      title: params.title ?? "Test Candidate Listing",
+      priceCents: params.priceCents ?? 100_000_00,
+      currency: params.currency ?? "USD",
+      city: params.city ?? "Test City",
+      bedrooms: params.bedrooms ?? 2,
+      possibleExistingPropertyId: params.possibleExistingPropertyId ?? null
+    }
+  });
+}
+
+export async function createTestSocialSync(
+  prisma: PrismaClient,
+  params: { organizationId: string; connectedAccountId: string; status?: SocialSyncStatus }
+): Promise<SocialSync> {
+  return prisma.socialSync.create({
+    data: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      status: params.status ?? "QUEUED"
     }
   });
 }

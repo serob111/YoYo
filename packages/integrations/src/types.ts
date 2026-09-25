@@ -16,6 +16,8 @@ export interface ProviderCapabilities {
   draftUpload: boolean;
   analytics: boolean;
   webhooks: boolean;
+  /** Can list/read the account's own existing posted media (for inventory import). */
+  mediaRead: boolean;
 }
 
 export interface TokenSet {
@@ -86,6 +88,44 @@ export interface PublishingProvider {
   publishImage(account: ConnectedAccountRef, media: MediaRef, caption: string): Promise<PublishResult>;
   publishVideo(account: ConnectedAccountRef, media: MediaRef, caption: string): Promise<PublishResult>;
   publishCarousel(account: ConnectedAccountRef, media: MediaRef[], caption: string): Promise<PublishResult>;
+}
+
+// ---------------------------------------------------------------------------
+// Existing-inventory import: reading an account's own already-posted media.
+// Separate small interface (mirroring MessagingProvider/PublishingProvider)
+// rather than folding into SocialConnectionProvider, since a provider may
+// support OAuth without supporting media reads (e.g. TikTok today).
+// ---------------------------------------------------------------------------
+
+export type RawSocialMediaType = "IMAGE" | "VIDEO" | "REEL" | "CAROUSEL";
+
+export interface RawSocialMediaChild {
+  providerChildId: string;
+  mediaType: "IMAGE" | "VIDEO";
+  mediaUrl: string | null;
+  thumbnailUrl: string | null;
+}
+
+export interface RawSocialMediaItem {
+  providerMediaId: string;
+  mediaType: RawSocialMediaType;
+  caption: string | null;
+  permalink: string | null;
+  postedAt: Date | null;
+  thumbnailUrl: string | null;
+  primaryMediaUrl: string | null;
+  children: RawSocialMediaChild[];
+  raw: Record<string, unknown>;
+}
+
+export interface SocialMediaPage {
+  items: RawSocialMediaItem[];
+  nextCursor: string | null;
+}
+
+export interface SocialMediaReaderProvider {
+  listMedia(account: ConnectedAccountRef, cursor?: string): Promise<SocialMediaPage>;
+  getMediaDetails(account: ConnectedAccountRef, mediaId: string): Promise<RawSocialMediaItem>;
 }
 
 /**

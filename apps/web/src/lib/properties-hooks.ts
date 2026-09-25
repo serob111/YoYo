@@ -1,6 +1,16 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { PropertyDto, UpsertPropertyInput } from "@yoyo/contracts";
+import type { PropertyDto, PropertyMediaDto, UpsertPropertyInput } from "@yoyo/contracts";
 import { apiRequest } from "./api-client";
+
+export interface PropertySocialSource {
+  id: string;
+  provider: "INSTAGRAM" | "TIKTOK";
+  mediaType: "IMAGE" | "VIDEO" | "REEL" | "CAROUSEL";
+  caption: string | null;
+  permalink: string | null;
+  postedAt: string | null;
+  thumbnailUrl: string | null;
+}
 
 interface Page<T> {
   items: T[];
@@ -61,6 +71,20 @@ export function useUnlinkLeadFromProperty(organizationId: string, propertyId: st
   return useMutation({
     mutationFn: (leadId: string) => apiRequest(`/organizations/${organizationId}/properties/${propertyId}/leads/${leadId}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations", organizationId, "properties", propertyId] })
+  });
+}
+
+export function usePropertyMedia(organizationId: string, propertyId: string) {
+  return useQuery<PropertyMediaDto[]>({
+    queryKey: ["organizations", organizationId, "properties", propertyId, "media"],
+    queryFn: () => apiRequest(`/organizations/${organizationId}/properties/${propertyId}/media`)
+  });
+}
+
+export function usePropertySocialSources(organizationId: string, propertyId: string) {
+  return useQuery<PropertySocialSource[]>({
+    queryKey: ["organizations", organizationId, "properties", propertyId, "social-sources"],
+    queryFn: () => apiRequest(`/organizations/${organizationId}/properties/${propertyId}/social-sources`)
   });
 }
 

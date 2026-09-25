@@ -25,6 +25,10 @@ export function resolveInstagramCapabilities(scopes: string[], accountType: stri
     storyPublishing: isBusinessOrCreator && has("instagram_business_content_publish"),
     draftUpload: false,
     analytics: isBusinessOrCreator && has("instagram_business_basic"),
-    webhooks: inboundMessaging
+    webhooks: inboundMessaging,
+    // Same scope as analytics: instagram_business_basic covers GET /me/media
+    // on the Instagram API with Instagram Login product - see
+    // InstagramMediaReaderProvider's doc comment for the source.
+    mediaRead: isBusinessOrCreator && has("instagram_business_basic")
   };
 }

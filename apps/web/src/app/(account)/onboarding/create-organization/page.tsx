@@ -11,7 +11,7 @@ import { AccountShell } from "../../account-shell";
 import styles from "../../account.module.css";
 
 export default function CreateOrganizationPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const router = useRouter();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,14 @@ export default function CreateOrganizationPage() {
     setError(null);
     setLoading(true);
     try {
-      const organization = await apiRequest<Organization>("/organizations", { method: "POST", body: JSON.stringify({ name }) });
+      // Every organization created through this onboarding flow is a
+      // real-estate agency (YoYo's current product) - the generic "core"
+      // vertical still exists for internal/testing org creation elsewhere,
+      // it's just never what a real signup lands on.
+      const organization = await apiRequest<Organization>("/organizations", {
+        method: "POST",
+        body: JSON.stringify({ name, vertical: "real_estate" })
+      });
       router.push(`/dashboard/${organization.id}`);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.error.message : "Something went wrong.");
@@ -32,10 +39,10 @@ export default function CreateOrganizationPage() {
   }
 
   return (
-    <AccountShell title={translateText("Create your business")} subtitle={translateText("This is the organization your AI employee will work for.")}>
+    <AccountShell title={translateText("Create your agency")} subtitle={translateText("This is the real-estate agency your AI assistant will work for.")}>
       <form onSubmit={onSubmit} className={styles.form}>
         <label className={styles.field}>
-           {translateText("Business name")} <input placeholder={translateText("e.g. Sunrise Bakery")} value={name} onChange={(e) => setName(e.target.value)} required />
+           {translateText("Agency name")} <input placeholder={translateText("e.g. Global Homes Realty")} value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         {error && (
           <p className={styles.error}>

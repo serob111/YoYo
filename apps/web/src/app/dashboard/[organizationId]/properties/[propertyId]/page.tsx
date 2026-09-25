@@ -8,7 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { CreateViewingInput, UpsertPropertyInput } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
 import { useCan } from "@/lib/permissions";
-import { useDeleteProperty, useLinkLeadToProperty, useProperty, useUnlinkLeadFromProperty, useUpdateProperty } from "@/lib/properties-hooks";
+import { useDeleteProperty, useLinkLeadToProperty, useProperty, usePropertyMedia, usePropertySocialSources, useUnlinkLeadFromProperty, useUpdateProperty } from "@/lib/properties-hooks";
 import { useCreateViewing, useUpdateViewingStatus, useViewings } from "@/lib/viewings-hooks";
 import { formatCents, formatPrice } from "@/lib/format";
 import { PropertyStatusBadge } from "@/components/property-status-badge";
@@ -32,7 +32,7 @@ import {
 const VIEWING_STATUSES = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"] as const;
 
 function Field({ label, value }: { label: string; value: string }) {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{translateText(label)}</dt>
@@ -56,6 +56,8 @@ export default function PropertyDetailPage() {
   const linkLead = useLinkLeadToProperty(organizationId, propertyId);
   const unlinkLead = useUnlinkLeadFromProperty(organizationId, propertyId);
   const { data: viewings } = useViewings(organizationId, { propertyId });
+  const { data: media } = usePropertyMedia(organizationId, propertyId);
+  const { data: socialSources } = usePropertySocialSources(organizationId, propertyId);
   const createViewing = useCreateViewing(organizationId);
   const updateViewingStatus = useUpdateViewingStatus(organizationId);
 
@@ -164,6 +166,53 @@ export default function PropertyDetailPage() {
           </>
         )}
       </dl>
+
+      {media && media.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold">{translateText("Media")}</h2>
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {media.map((item) => (
+              <a
+                key={item.id}
+                href={item.externalUrl ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+                className="aspect-square overflow-hidden rounded-lg border border-border bg-muted"
+              >
+                {(item.externalUrl ?? item.storageKey) && (
+                  // eslint-disable-next-line @next/next/no-img-element -- provider-hosted/presigned URLs, not a static asset
+                  <img src={item.externalUrl ?? item.storageKey ?? ""} alt="" className="h-full w-full object-cover" />
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {socialSources && socialSources.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold">{translateText("Social")}</h2>
+          <div className="mt-2 flex flex-col gap-2">
+            {socialSources.map((item) => (
+              <a
+                key={item.id}
+                href={item.permalink ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm hover:border-foreground/30"
+              >
+                <div className="min-w-0">
+                  <span className="font-medium">
+                    {item.provider === "INSTAGRAM" ? "Instagram" : "TikTok"} · {translateText(item.mediaType)}
+                  </span>
+                  {item.caption && <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.caption}</p>}
+                </div>
+                {item.postedAt && <span className="shrink-0 text-xs text-muted-foreground">{new Date(item.postedAt).toLocaleDateString(intlLocale)}</span>}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-8">
         <h2 className="text-sm font-semibold">{translateText("Linked leads")}</h2>

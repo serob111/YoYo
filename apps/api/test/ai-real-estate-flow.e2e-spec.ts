@@ -293,6 +293,48 @@ describe("AI sales pipeline: real estate vertical (apps/worker-ai)", () => {
     expect(results.every((p) => p.transactionType === "RENT")).toBe(true);
   });
 
+  it("never returns a property priced in a different currency, even if the raw numbers are within budget", async () => {
+    const { organization, triggerMessage } = await seedRealEstateConversation();
+    const prisma = getPrisma(app);
+
+    const aedProperty = await createTestProperty(prisma, { organizationId: organization.id, title: "Dubai Marina 2BR", propertyType: "APARTMENT" });
+    await prisma.property.update({
+      where: { id: aedProperty.id },
+      data: { status: "ACTIVE", bedrooms: 2, priceCents: 190_000_000, currency: "AED", country: "UAE", city: "Dubai" }
+    });
+    // Priced in EUR at a numerically similar figure to the AED budget below -
+    // a currency-blind comparison would wrongly include this.
+    const eurProperty = await createTestProperty(prisma, { organizationId: organization.id, title: "Marbella Villa", propertyType: "HOUSE" });
+    await prisma.property.update({
+      where: { id: eurProperty.id },
+      data: { status: "ACTIVE", bedrooms: 4, priceCents: 185_000_000, currency: "EUR", country: "Spain", city: "Marbella" }
+    });
+
+    const provider = new ScriptedAIProvider([
+      {
+        stopReason: "tool_use",
+        content: [
+          { type: "tool_use", id: "t1", name: "searchProperties", input: { transactionType: "SALE", maxPriceCents: 200_000_000, currency: "AED", country: "UAE", city: "Dubai" } }
+        ],
+        usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 }
+      },
+      {
+        stopReason: "tool_use",
+        content: [{ type: "tool_use", id: "t2", name: "submit_reply", input: { reply: "Found a match in Dubai.", intent: "booking", needsHuman: false, actions: [] } }],
+        usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0 }
+      }
+    ]);
+
+    await generateAiReply(prisma, provider, new FixedEmbeddingProvider(makeVector(0)), DEFAULT_MODEL, triggerMessage.id);
+
+    const secondRequestMessages = provider.requests[1]?.messages ?? [];
+    const toolResultBlock = secondRequestMessages.flatMap((m) => m.content).find((b) => b.type === "tool_result" && b.toolUseId === "t1");
+    const results = JSON.parse((toolResultBlock as { content: string }).content) as { id: string; currency: string }[];
+    expect(results.map((p) => p.id)).toContain(aedProperty.id);
+    expect(results.map((p) => p.id)).not.toContain(eurProperty.id);
+    expect(results.every((p) => p.currency === "AED")).toBe(true);
+  });
+
   it("never advertises real-estate tools or actions to a core-vertical organization's agent", async () => {
     const prisma = getPrisma(app);
     const { organization } = await createOrgWithOwner(prisma);

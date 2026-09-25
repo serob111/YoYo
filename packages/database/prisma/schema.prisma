@@ -105,49 +105,54 @@ model MagicLinkToken {
 }
 
 model Organization {
-  id        String             @id @default(uuid())
-  name      String
-  slug      String             @unique
-  status    OrganizationStatus @default(ACTIVE)
+  id               String             @id @default(uuid())
+  name             String
+  slug             String             @unique
+  status           OrganizationStatus @default(ACTIVE)
   // Selects which packages/verticals config (nav, terminology, enabled modules,
   // and eventually domain modules/AI tools) this org runs on. A plain string,
   // not a Prisma enum, deliberately - the vertical registry is TS-code-driven
   // (see packages/verticals), so adding a new vertical never requires a migration.
   // Unknown/missing values fall back to "core" in getVerticalConfig - see that
   // fallback before assuming every org has a value matching a registered vertical.
-  vertical  String             @default("core")
+  vertical         String             @default("core")
   // Set on first checkout - null means this org has never started a Stripe
   // Checkout/Portal session yet, not that billing failed.
-  stripeCustomerId String?     @unique
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  stripeCustomerId String?            @unique
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
-  subscription         Subscription?
-  members              OrganizationMember[]
-  auditLogs            AuditLog[]
-  connectedAccounts    ConnectedAccount[]
-  webhookEvents        ProviderWebhookEvent[]
-  contacts             Contact[]
-  conversations        Conversation[]
-  messages             Message[]
-  businessProfile      BusinessProfile?
-  products             Product[]
-  services             Service[]
-  knowledgeChunks      KnowledgeChunk[]
-  aiResponses          AiResponse[]
-  pipelines            Pipeline[]
-  leads                Lead[]
-  activities           Activity[]
-  tasks                Task[]
-  tags                 Tag[]
-  followUps            FollowUp[]
-  automations          Automation[]
-  automationExecutions AutomationExecution[]
-  contentItems         ContentItem[]
-  contentMediaAssets   ContentMediaAsset[]
-  properties           Property[]
-  viewings             Viewing[]
-  buyerPreferences     BuyerPreference[]
+  subscription             Subscription?
+  members                  OrganizationMember[]
+  auditLogs                AuditLog[]
+  connectedAccounts        ConnectedAccount[]
+  webhookEvents            ProviderWebhookEvent[]
+  contacts                 Contact[]
+  conversations            Conversation[]
+  messages                 Message[]
+  businessProfile          BusinessProfile?
+  products                 Product[]
+  services                 Service[]
+  knowledgeChunks          KnowledgeChunk[]
+  aiResponses              AiResponse[]
+  pipelines                Pipeline[]
+  leads                    Lead[]
+  activities               Activity[]
+  tasks                    Task[]
+  tags                     Tag[]
+  followUps                FollowUp[]
+  automations              Automation[]
+  automationExecutions     AutomationExecution[]
+  contentItems             ContentItem[]
+  contentMediaAssets       ContentMediaAsset[]
+  properties               Property[]
+  viewings                 Viewing[]
+  buyerPreferences         BuyerPreference[]
+  socialMediaItems         SocialMediaItem[]
+  socialMediaAssets        SocialMediaAsset[]
+  propertyImportCandidates PropertyImportCandidate[]
+  propertyMedia            PropertyMedia[]
+  socialSyncs              SocialSync[]
 
   @@map("organizations")
 }
@@ -333,6 +338,8 @@ model ConnectedAccount {
   conversations     Conversation[]
   messages          Message[]
   contentItems      ContentItem[]
+  socialMediaItems  SocialMediaItem[]
+  socialSyncs       SocialSync[]
 
   // Global, not per-org: this is the trust boundary inbound webhooks resolve
   // organizationId through. One external account can only ever belong to one org.
@@ -1143,11 +1150,22 @@ model Property {
   totalFloors         Int?
   condition           String?
   buildingType        String?
+  // Optional geo enrichment - never required for manual creation, populated
+  // only when available (e.g. from a social import). No geocoder exists yet.
+  countryCode         String?
+  region              String?
+  formattedAddress    String?
+  latitude            Float?
+  longitude           Float?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  leads    LeadProperty[]
-  viewings Viewing[]
+  leads               LeadProperty[]
+  viewings            Viewing[]
+  media               PropertyMedia[]
+  socialMediaItems    SocialMediaItem[]
+  possibleExistingFor PropertyImportCandidate[] @relation("PossibleExistingProperty")
+  importedFrom        PropertyImportCandidate[] @relation("ImportedProperty")
 
   @@index([organizationId, status])
   // Not queried by anything today - kept from an in-progress cross-org
@@ -1236,4 +1254,220 @@ model Viewing {
   @@index([organizationId, scheduledFor])
   @@index([leadId])
   @@map("viewings")
+}
+
+// ---------------------------------------------------------------------------
+// Instagram/TikTok existing-inventory import. Deliberately NOT modeled on
+// ContentItem - that model is shaped for YoYo-authored outbound publishing
+// (approval workflow, publish-attempt tracking) and would conflate concerns
+// for content that already existed on the platform before YoYo ever saw it.
+// Reuses ConnectedAccount as the account model - no separate SocialAccount.
+// ---------------------------------------------------------------------------
+
+enum SocialMediaType {
+  IMAGE
+  VIDEO
+  REEL
+  CAROUSEL
+}
+
+enum SocialMediaAnalysisStatus {
+  PENDING
+  ANALYZING
+  ANALYZED
+  FAILED
+  SKIPPED
+}
+
+// Lifecycle of one discovered post, independent of analysisStatus - a post
+// can be ANALYZED but never grouped if it wasn't property-related.
+enum SocialMediaImportStatus {
+  DISCOVERED
+  ANALYZED
+  CANDIDATE
+  LINKED
+  IGNORED
+}
+
+model SocialMediaItem {
+  id                 String                    @id @default(uuid())
+  organizationId     String
+  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId String
+  connectedAccount   ConnectedAccount          @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  provider           Provider
+  providerMediaId    String
+  mediaType          SocialMediaType
+  caption            String?                   @db.Text
+  permalink          String?
+  postedAt           DateTime?
+  thumbnailUrl       String?
+  primaryMediaUrl    String?
+  providerMetadata   Json                      @default("{}")
+  analysisStatus     SocialMediaAnalysisStatus @default(PENDING)
+  analysisResult     Json?
+  isPropertyRelated  Boolean?
+  analysisConfidence Float?
+  candidateId        String?
+  candidate          PropertyImportCandidate?  @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  // Denormalized: set once a candidate containing this item is imported/
+  // linked, so "show this property's social sources" never needs to join
+  // through PropertyImportCandidate.
+  propertyId         String?
+  property           Property?                 @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  importStatus       SocialMediaImportStatus   @default(DISCOVERED)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  lastSyncedAt       DateTime                  @default(now())
+
+  assets       SocialMediaAsset[]
+  sourcedMedia PropertyMedia[]
+
+  // Account-scoped, not global - mirrors ConnectedAccount's own tenant
+  // boundary rather than assuming provider media ids are globally unique.
+  @@unique([connectedAccountId, providerMediaId])
+  @@index([organizationId, importStatus])
+  @@index([candidateId])
+  @@map("social_media_items")
+}
+
+// Carousel children. Reuses MediaAssetKind (IMAGE/VIDEO) from the
+// ContentMediaAsset model above rather than a duplicate enum.
+model SocialMediaAsset {
+  id                String          @id @default(uuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  socialMediaItemId String
+  socialMediaItem   SocialMediaItem @relation(fields: [socialMediaItemId], references: [id], onDelete: Cascade)
+  position          Int
+  kind              MediaAssetKind
+  mediaUrl          String
+  thumbnailUrl      String?
+  providerChildId   String?
+  createdAt         DateTime        @default(now())
+
+  @@unique([socialMediaItemId, position])
+  @@map("social_media_assets")
+}
+
+enum PropertyImportCandidateStatus {
+  PENDING_REVIEW
+  IMPORTED
+  LINKED_EXISTING
+  IGNORED
+}
+
+// One review/grouping unit - many SocialMediaItem rows may point at one
+// candidate (e.g. 3 posts for the same listing). reviewedByUserId is a bare
+// column (no relation) to avoid widening the User model for this feature.
+model PropertyImportCandidate {
+  id                         String                        @id @default(uuid())
+  organizationId             String
+  organization               Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId         String
+  status                     PropertyImportCandidateStatus @default(PENDING_REVIEW)
+  confidence                 Float
+  transactionType            TransactionType
+  propertyType               PropertyType
+  title                      String
+  description                String?                       @db.Text
+  priceCents                 Int?
+  currency                   String                        @default("USD")
+  country                    String?
+  city                       String?
+  district                   String?
+  address                    String?
+  bedrooms                   Int?
+  bathrooms                  Int?
+  areaSqm                    Float?
+  availabilityHint           String?
+  possibleExistingPropertyId String?
+  possibleExistingProperty   Property?                     @relation("PossibleExistingProperty", fields: [possibleExistingPropertyId], references: [id], onDelete: SetNull)
+  importedPropertyId         String?
+  importedProperty           Property?                     @relation("ImportedProperty", fields: [importedPropertyId], references: [id], onDelete: SetNull)
+  createdAt                  DateTime                      @default(now())
+  updatedAt                  DateTime                      @updatedAt
+  reviewedAt                 DateTime?
+  reviewedByUserId           String?
+
+  items SocialMediaItem[]
+
+  @@index([organizationId, status])
+  @@map("property_import_candidates")
+}
+
+enum PropertyMediaKind {
+  IMAGE
+  VIDEO
+  FLOORPLAN
+  OTHER
+}
+
+enum PropertyMediaSource {
+  MANUAL
+  INSTAGRAM
+  TIKTOK
+}
+
+model PropertyMedia {
+  id                      String              @id @default(uuid())
+  organizationId          String
+  organization            Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  propertyId              String
+  property                Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  kind                    PropertyMediaKind
+  // Exactly one of these is expected to be set. storageKey is null for MVP
+  // social imports (provider-hosted URLs used directly - they can expire; a
+  // later job copying media into packages/storage is a pure addition, not a
+  // migration).
+  storageKey              String?
+  externalUrl             String?
+  source                  PropertyMediaSource @default(MANUAL)
+  sourceSocialMediaItemId String?
+  sourceSocialMediaItem   SocialMediaItem?    @relation(fields: [sourceSocialMediaItemId], references: [id], onDelete: SetNull)
+  position                Int                 @default(0)
+  isCover                 Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+
+  @@index([organizationId, propertyId])
+  @@map("property_media")
+}
+
+enum SocialSyncType {
+  INITIAL
+  INCREMENTAL
+}
+
+enum SocialSyncStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+// Durable, queryable job state - the frontend polls this, not BullMQ job
+// state directly (BullMQ's job store isn't a product-facing progress/history
+// source).
+model SocialSync {
+  id                   String           @id @default(uuid())
+  organizationId       String
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccountId   String
+  connectedAccount     ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  type                 SocialSyncType   @default(INITIAL)
+  status               SocialSyncStatus @default(QUEUED)
+  totalItems           Int              @default(0)
+  processedItems       Int              @default(0)
+  propertyRelatedItems Int              @default(0)
+  candidateCount       Int              @default(0)
+  errorCount           Int              @default(0)
+  startedAt            DateTime?
+  completedAt          DateTime?
+  lastError            String?          @db.Text
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([organizationId, connectedAccountId, createdAt])
+  @@map("social_syncs")
 }

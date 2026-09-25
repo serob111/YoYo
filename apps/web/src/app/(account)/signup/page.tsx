@@ -11,7 +11,7 @@ import { AccountShell } from "../account-shell";
 import styles from "../account.module.css";
 
 export default function SignupPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText } = useI18n();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +36,7 @@ export default function SignupPage() {
   return (
     <AccountShell
       title={translateText("Create your account")}
-      subtitle={translateText("Set up your AI sales and social media employee in minutes.")}
+      subtitle={translateText("Set up your AI leasing assistant and import your Instagram listings in minutes.")}
       footer={
         <>
            {translateText("Already have an account?")} <Link href="/login">{translateText("Log in")}</Link>

@@ -13,6 +13,10 @@ export const SearchPropertiesInputSchema = z.object({
   // from matching a $1,500 SALE-priced listing at the same price point.
   transactionType: z.enum(["SALE", "RENT"]),
   maxPriceCents: z.number().int().positive().optional(),
+  // Scopes any price filter to same-currency listings - see the where clause
+  // below. Defaulted (never undefined) so a maxPriceCents filter can never
+  // apply without an explicit currency to scope it to.
+  currency: z.string().length(3).default("USD"),
   minAreaSqm: z.number().positive().optional(),
   bedrooms: z.number().int().nonnegative().optional(),
   country: z.string().optional(),
@@ -37,6 +41,10 @@ export const REAL_ESTATE_TOOL_DEFS: AIToolDefinition[] = [
         maxPriceCents: {
           type: "integer",
           description: "Maximum price in cents, if the customer gave a budget. For RENT, this is the max per-period rent, not a total."
+        },
+        currency: {
+          type: "string",
+          description: "3-letter currency code the budget was given in (e.g. AED, EUR, USD). Always include this whenever you pass maxPriceCents - listings in a different currency are never numerically comparable to it."
         },
         minAreaSqm: { type: "number", description: "Minimum area in square meters." },
         bedrooms: { type: "integer", description: "Minimum number of bedrooms." },
@@ -95,7 +103,7 @@ export const REAL_ESTATE_ACTION_VARIANTS: Record<string, unknown>[] = [
 ];
 
 export const REAL_ESTATE_PROMPT_INSTRUCTIONS =
-  "This business sells and rents real estate listings (properties). Always determine first whether the customer wants to BUY (SALE) or RENT a property - never assume, and pass that as transactionType on every searchProperties call and every UPDATE_BUYER_PREFERENCES action. Use searchProperties to find matching active listings before answering - never invent listings. If the customer mentions a specific country or city (this agency may operate in more than one), pass country/city on searchProperties and UPDATE_BUYER_PREFERENCES so results stay relevant. If the customer states what they're looking for (budget, area, bedrooms, location), propose UPDATE_BUYER_PREFERENCES to save it, including the currency they discussed if it differs from the default, even if you also found matching listings - for a RENT search also ask about move-in date, lease length, furnished preference, occupants, and pets when relevant; for a SALE search ask about financing (cash or mortgage) and purchase timeframe instead. If the customer wants to see a property in person, propose CREATE_VIEWING with the property's id and how many minutes from now to schedule it.";
+  "This business sells and rents real estate listings (properties). Always determine first whether the customer wants to BUY (SALE) or RENT a property - never assume, and pass that as transactionType on every searchProperties call and every UPDATE_BUYER_PREFERENCES action. Whenever the customer states a budget, always pass the 3-letter currency code alongside maxPriceCents on searchProperties (defaulting to this business's usual currency only if the customer didn't say and there's no other cue) - never assume two prices in different currencies are comparable just because the numbers look similar. Use searchProperties to find matching active listings before answering - never invent listings. If the customer mentions a specific country or city (this agency may operate in more than one), pass country/city on searchProperties and UPDATE_BUYER_PREFERENCES so results stay relevant. If the customer states what they're looking for (budget, area, bedrooms, location), propose UPDATE_BUYER_PREFERENCES to save it, including the currency they discussed if it differs from the default, even if you also found matching listings - for a RENT search also ask about move-in date, lease length, furnished preference, occupants, and pets when relevant; for a SALE search ask about financing (cash or mortgage) and purchase timeframe instead. If the customer wants to see a property in person, propose CREATE_VIEWING with the property's id and how many minutes from now to schedule it.";
 
 export function buildRealEstateToolHandlers(prisma: PrismaClient, organizationId: string) {
   return {
@@ -106,7 +114,12 @@ export function buildRealEstateToolHandlers(prisma: PrismaClient, organizationId
           organizationId,
           status: "ACTIVE",
           transactionType: parsed.transactionType,
-          ...(parsed.maxPriceCents != null ? { priceCents: { lte: parsed.maxPriceCents } } : {}),
+          // Price filtering is scoped to same-currency listings only - a
+          // property priced in a different currency is excluded from a
+          // budget-constrained search rather than compared numerically
+          // (e.g. an AED 2,000,000 budget must never match a EUR-priced
+          // listing just because the raw numbers happen to be close).
+          ...(parsed.maxPriceCents != null ? { priceCents: { lte: parsed.maxPriceCents }, currency: parsed.currency } : {}),
           ...(parsed.minAreaSqm != null ? { areaSqm: { gte: parsed.minAreaSqm } } : {}),
           ...(parsed.bedrooms != null ? { bedrooms: { gte: parsed.bedrooms } } : {}),
           ...(parsed.country ? { country: parsed.country } : {}),

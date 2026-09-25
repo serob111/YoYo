@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { InstagramLogo } from "@phosphor-icons/react";
 import type { UpsertPropertyInput } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
 import { useCan } from "@/lib/permissions";
@@ -18,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function PropertiesPage() {
-  const { t: translateText, locale, intlLocale } = useI18n();
+  const { t: translateText, locale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -42,6 +43,11 @@ export default function PropertiesPage() {
           {organization && (
             <Button variant="outline" nativeButton={false} render={<a href={`/storefront/${organization.slug}`} target="_blank" rel="noreferrer" />}>
                {translateText("View public storefront")} </Button>
+          )}
+          {canManage && (
+            <Button variant="secondary" nativeButton={false} render={<Link href={`/dashboard/${organizationId}/properties/import`} />}>
+              <InstagramLogo size={16} /> {translateText("Import from Instagram")}
+            </Button>
           )}
           {canManage && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>

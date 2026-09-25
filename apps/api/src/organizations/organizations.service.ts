@@ -24,7 +24,9 @@ export class OrganizationsService {
         slug = withUniqueSuffix(baseSlug);
       }
 
-      const organization = await tx.organization.create({ data: { name: input.name, slug } });
+      const organization = await tx.organization.create({
+        data: { name: input.name, slug, ...(input.vertical ? { vertical: input.vertical } : {}) }
+      });
       const membership = await tx.organizationMember.create({
         data: { organizationId: organization.id, userId: ownerId, role: "OWNER", status: "ACTIVE", joinedAt: new Date() }
       });
@@ -80,6 +82,34 @@ export class OrganizationsService {
       conversionRate: closedLeads > 0 ? wonLeads / closedLeads : null,
       aiHandledConversations,
       humanHandledConversations
+    };
+  }
+
+  // All five checklist items are derived from existing data - no persisted
+  // "onboarding progress" field exists or is needed. firstMatchReviewed in
+  // particular reuses LeadProperty (created by the existing linkLead
+  // endpoint) as the signal that a human confirmed a property-lead match,
+  // rather than inventing a new column for it.
+  async getSetupStatus(organizationId: string) {
+    const [propertyCount, connectedAccountCount, leadCount, leadPropertyCount] = await Promise.all([
+      this.prisma.client.property.count({ where: { organizationId } }),
+      this.prisma.client.connectedAccount.count({ where: { organizationId, status: "CONNECTED" } }),
+      this.prisma.client.lead.count({ where: { organizationId } }),
+      this.prisma.client.leadProperty.count({ where: { property: { organizationId } } })
+    ]);
+
+    const inventoryConfigured = propertyCount > 0;
+    const socialConnected = connectedAccountCount > 0;
+    const firstLeadProcessed = leadCount > 0;
+    const firstMatchReviewed = leadPropertyCount > 0;
+
+    return {
+      agencyCreated: true,
+      inventoryConfigured,
+      socialConnected,
+      firstLeadProcessed,
+      firstMatchReviewed,
+      complete: inventoryConfigured && socialConnected && firstLeadProcessed && firstMatchReviewed
     };
   }
 

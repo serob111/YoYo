@@ -5,6 +5,7 @@ export * from "./instagram/http";
 export * from "./instagram/instagram-connection.provider";
 export * from "./instagram/instagram-messaging.provider";
 export * from "./instagram/instagram-publishing.provider";
+export * from "./instagram/instagram-media-reader.provider";
 export * from "./instagram/webhook-signature";
 export * from "./instagram/webhook-payload";
 export * from "./tiktok/capabilities";

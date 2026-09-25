@@ -138,6 +138,9 @@ importers:
       '@yoyo/worker-publishing':
         specifier: workspace:*
         version: link:../worker-publishing
+      '@yoyo/worker-social-sync':
+        specifier: workspace:*
+        version: link:../worker-social-sync
       '@yoyo/worker-webhooks':
         specifier: workspace:*
         version: link:../worker-webhooks
@@ -532,6 +535,64 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+
+  apps/worker-social-sync:
+    dependencies:
+      '@yoyo/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@yoyo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@yoyo/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@yoyo/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@yoyo/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
+      '@yoyo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@yoyo/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
+      bullmq:
+        specifier: ^5.15.0
+        version: 5.81.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.20.1
+      '@yoyo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@yoyo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      ts-node-dev:
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.1)(lightningcss@1.32.0)(terser@5.51.2)
 
   apps/worker-webhooks:
     dependencies:

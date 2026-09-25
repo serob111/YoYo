@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [api, web, worker-webhooks, worker-messaging, worker-ai, worker-automations]
+        app: [api, web, worker-webhooks, worker-messaging, worker-ai, worker-automations, worker-social-sync]
     steps:
       - uses: actions/checkout@v4
 

@@ -87,11 +87,11 @@ export class TikTokOAuthCallbackController {
       // Unaudited TikTok apps are forced to private-only post visibility - a
       // real, permanent platform restriction, surfaced here rather than as a
       // ProviderCapabilities flag (see packages/integrations/src/tiktok/capabilities.ts).
-      await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "TIKTOK", profile, tokens, capabilities, {
+      const account = await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "TIKTOK", profile, tokens, capabilities, {
         visibilityRestricted: true
       });
 
-      res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
+      res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations?connected=tiktok&accountId=${account.id}`);
     } catch (err) {
       this.logger.error("TikTok OAuth callback failed", err instanceof Error ? err.stack : err);
       res.redirect(`${failureRedirect}?reason=connection_failed`);
@@ -135,9 +135,9 @@ export class InstagramOAuthCallbackController {
       const profile = await provider.getAccountProfile(tokens.accessToken);
       const capabilities = provider.getCapabilities(tokens.scopes, profile.accountType);
 
-      await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "INSTAGRAM", profile, tokens, capabilities);
+      const account = await this.connectedAccounts.upsertFromOAuth(payload.organizationId, payload.userId, "INSTAGRAM", profile, tokens, capabilities);
 
-      res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations`);
+      res.redirect(`${this.env.WEB_APP_URL}/dashboard/${payload.organizationId}/settings/integrations?connected=instagram&accountId=${account.id}`);
     } catch (err) {
       this.logger.error("Instagram OAuth callback failed", err instanceof Error ? err.stack : err);
       res.redirect(`${failureRedirect}?reason=connection_failed`);
