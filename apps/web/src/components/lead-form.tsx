@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import type { LeadIntent, UpsertLeadInput } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
@@ -28,6 +30,7 @@ export function LeadForm({
   submitLabel: string;
   isPending: boolean;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { data: organization } = useOrganization(organizationId);
   const isRealEstate = organization?.vertical === "real_estate";
 
@@ -81,8 +84,7 @@ export function LeadForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-3">
         <div className="grid gap-1 text-sm font-medium">
-          Contact
-          {contactId ? (
+           {translateText("Contact")} {contactId ? (
             <div className="flex items-center justify-between rounded-lg border border-input px-2.5 py-1.5 text-sm">
               <span>{contactName}</span>
               <button
@@ -93,13 +95,12 @@ export function LeadForm({
                   setContactName(null);
                 }}
               >
-                Change
-              </button>
+                 {translateText("Change")} </button>
             </div>
           ) : (
             <>
               <Input
-                placeholder="Search contacts by name…"
+                placeholder={translateText("Search contacts by name…")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -110,9 +111,9 @@ export function LeadForm({
                 <div className="mt-1 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-input p-1">
                   {contacts.length === 0 && (
                     <div className="px-2 py-1.5">
-                      <p className="text-xs text-muted-foreground">No contacts found.</p>
+                      <p className="text-xs text-muted-foreground">{translateText("No contacts found.")}</p>
                       <button type="button" className="mt-1 text-xs font-medium text-primary underline" onClick={() => setCreatingContact(true)}>
-                        + Create new contact “{search.trim()}”
+                         {translateText("+ Create new contact “")}{search.trim()}”
                       </button>
                     </div>
                   )}
@@ -136,18 +137,17 @@ export function LeadForm({
               {creatingContact && (
                 <div className="mt-1 flex flex-col gap-2 rounded-lg border border-input p-2.5">
                   <p className="text-xs font-medium">
-                    New contact: <span className="font-normal text-muted-foreground">{search.trim()}</span>
+                     {translateText("New contact:")} <span className="font-normal text-muted-foreground">{search.trim()}</span>
                   </p>
-                  <Input placeholder="Phone (optional)" value={newContactPhone} onChange={(e) => setNewContactPhone(e.target.value)} />
-                  <Input placeholder="Email (optional)" type="email" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
-                  {createContact.isError && <p className="text-xs text-destructive">Could not create contact. Try again.</p>}
+                  <Input placeholder={translateText("Phone (optional)")} value={newContactPhone} onChange={(e) => setNewContactPhone(e.target.value)} />
+                  <Input placeholder={translateText("Email (optional)")} type="email" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
+                  {createContact.isError && <p className="text-xs text-destructive">{translateText("Could not create contact. Try again.")}</p>}
                   <div className="flex gap-2">
                     <Button type="button" size="sm" disabled={createContact.isPending} onClick={handleCreateContact}>
-                      {createContact.isPending ? "Creating…" : "Create contact"}
+                      {createContact.isPending ? translateText("Creating…") : translateText("Create contact")}
                     </Button>
                     <Button type="button" size="sm" variant="ghost" onClick={() => setCreatingContact(false)}>
-                      Cancel
-                    </Button>
+                       {translateText("Cancel")} </Button>
                   </div>
                 </div>
               )}
@@ -157,8 +157,7 @@ export function LeadForm({
 
         {isRealEstate && (
           <label className="grid gap-1 text-sm font-medium">
-            Intent
-            <Select
+             {translateText("Intent")} <Select
               items={{ none: "Not set", ...Object.fromEntries(LEAD_INTENTS.map((i) => [i, LEAD_INTENT_LABELS[i]])) }}
               value={intent || "none"}
               onValueChange={(v) => setIntent(!v || v === "none" ? "" : (v as LeadIntent))}
@@ -167,10 +166,10 @@ export function LeadForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Not set</SelectItem>
+                <SelectItem value="none">{translateText("Not set")}</SelectItem>
                 {LEAD_INTENTS.map((i) => (
                   <SelectItem key={i} value={i}>
-                    {LEAD_INTENT_LABELS[i]}
+                    {translateText(LEAD_INTENT_LABELS[i])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -179,18 +178,15 @@ export function LeadForm({
         )}
 
         <label className="grid gap-1 text-sm font-medium">
-          Title
-          <Input required value={title} onChange={(e) => setTitle(e.target.value)} />
+           {translateText("Title")} <Input required value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Value
-            <Input type="number" min="0" placeholder="e.g. 5000" value={value} onChange={(e) => setValue(e.target.value)} />
+             {translateText("Value")} <Input type="number" min="0" placeholder={translateText("e.g. 5000")} value={value} onChange={(e) => setValue(e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Currency
-            <Input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+             {translateText("Currency")} <Input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
           </label>
         </div>
       </div>

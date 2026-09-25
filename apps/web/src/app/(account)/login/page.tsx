@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,6 +12,7 @@ import { AccountShell } from "../account-shell";
 import styles from "../account.module.css";
 
 export default function LoginPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,38 +40,35 @@ export default function LoginPage() {
 
   return (
     <AccountShell
-      title="Welcome back"
-      subtitle="Log in to keep your AI employee working."
+      title={translateText("Welcome back")}
+      subtitle={translateText("Log in to keep your AI employee working.")}
       footer={
         <>
-          No account?{" "}
-          <Link href="/signup">Sign up</Link>
+           {translateText("No account?")}{" "}
+          <Link href="/signup">{translateText("Sign up")}</Link>
         </>
       }
     >
       <form onSubmit={onSubmit} className={styles.form}>
         <label className={styles.field}>
-          Email
-          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+           {translateText("Email")} <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className={styles.field}>
-          Password
-          <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+           {translateText("Password")} <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         {error && (
           <p className={styles.error}>
             <WarningCircle weight="bold" style={{ flexShrink: 0, marginTop: 2 }} />
-            {error}
+            {translateText(error)}
           </p>
         )}
         <button className={styles.submit} type="submit" disabled={loading}>
-          {loading ? "Logging in…" : "Log in"}
+          {loading ? translateText("Logging in…") : translateText("Log in")}
         </button>
       </form>
-      <div className={styles.divider}>or</div>
+      <div className={styles.divider}>{translateText("or")}</div>
       <Link href="/magic-link" className={styles.secondaryLink}>
-        Log in with a magic link
-      </Link>
+         {translateText("Log in with a magic link")} </Link>
     </AccountShell>
   );
 }

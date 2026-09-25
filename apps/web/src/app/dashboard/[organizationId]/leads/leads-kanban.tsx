@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import Link from "next/link";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { PipelineDto, PipelineStageDto } from "@yoyo/contracts";
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function KanbanCard({ organizationId, lead }: { organizationId: string; lead: LeadListItem }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 
@@ -32,12 +35,13 @@ function KanbanCard({ organizationId, lead }: { organizationId: string; lead: Le
         {lead.title}
       </Link>
       <p className="mt-0.5 truncate text-xs text-muted-foreground">{lead.contactDisplayName}</p>
-      <p className="mt-1 text-xs font-medium tabular-nums text-muted-foreground">{formatCents(lead.valueCents, lead.currency)}</p>
+      <p className="mt-1 text-xs font-medium tabular-nums text-muted-foreground">{formatCents(lead.valueCents, lead.currency, locale)}</p>
     </div>
   );
 }
 
 function KanbanColumn({ organizationId, stage }: { organizationId: string; stage: PipelineStageDto }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLeads(organizationId, { stageId: stage.id });
   const leads = data?.pages.flatMap((page) => page.items) ?? [];
@@ -54,13 +58,13 @@ function KanbanColumn({ organizationId, stage }: { organizationId: string; stage
       </div>
       <div className="flex flex-col gap-2">
         {isLoading && <Skeleton className="h-16 w-full" />}
-        {!isLoading && leads.length === 0 && <p className="px-1 text-xs text-muted-foreground">No leads.</p>}
+        {!isLoading && leads.length === 0 && <p className="px-1 text-xs text-muted-foreground">{translateText("No leads.")}</p>}
         {leads.map((lead) => (
           <KanbanCard key={lead.id} organizationId={organizationId} lead={lead} />
         ))}
         {hasNextPage && (
           <Button variant="ghost" size="sm" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
-            {isFetchingNextPage ? "Loading..." : "Load more"}
+            {isFetchingNextPage ? translateText("Loading...") : translateText("Load more")}
           </Button>
         )}
       </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { cn } from "@/lib/utils";
 import { useConversations } from "@/lib/conversations-hooks";
 import { AutomationStateBadge } from "@/components/automation-state-badge";
@@ -17,6 +19,7 @@ export function ConversationList({
   selectedConversationId: string | null;
   onSelect: (conversationId: string) => void;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useConversations(organizationId);
   const conversations = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -31,7 +34,7 @@ export function ConversationList({
   }
 
   if (conversations.length === 0) {
-    return <p className="p-4 text-sm text-muted-foreground">No conversations yet.</p>;
+    return <p className="p-4 text-sm text-muted-foreground">{translateText("No conversations yet.")}</p>;
   }
 
   return (
@@ -56,14 +59,14 @@ export function ConversationList({
             {conversation.lastMessageText && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{conversation.lastMessageText}</p>}
             <div className="mt-1.5 flex items-center gap-1.5">
               <AutomationStateBadge state={conversation.automationState} />
-              {conversation.assignedUserId && <span className="text-xs text-muted-foreground">Assigned</span>}
+              {conversation.assignedUserId && <span className="text-xs text-muted-foreground">{translateText("Assigned")}</span>}
             </div>
           </div>
         </button>
       ))}
       {hasNextPage && (
         <Button variant="ghost" className="m-2" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
-          {isFetchingNextPage ? "Loading..." : "Load more"}
+          {isFetchingNextPage ? translateText("Loading...") : translateText("Load more")}
         </Button>
       )}
     </div>

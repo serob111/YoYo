@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import { useProperties } from "@/lib/properties-hooks";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,7 @@ export function PropertyPicker({
   selected: PickedProperty | null;
   onSelect: (property: PickedProperty | null) => void;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const [search, setSearch] = useState("");
   const { data } = useProperties(organizationId);
   const properties = data?.pages.flatMap((page) => page.items) ?? [];
@@ -31,17 +34,16 @@ export function PropertyPicker({
       <div className="flex items-center justify-between rounded-lg border border-input px-2.5 py-1.5 text-sm">
         <span>{selected.title}</span>
         <button type="button" className="text-xs text-muted-foreground underline" onClick={() => onSelect(null)}>
-          Change
-        </button>
+           {translateText("Change")} </button>
       </div>
     );
   }
 
   return (
     <>
-      <Input placeholder="Search properties by title…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <Input placeholder={translateText("Search properties by title…")} value={search} onChange={(e) => setSearch(e.target.value)} />
       <div className="mt-1 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-input p-1">
-        {filtered.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">No properties found.</p>}
+        {filtered.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">{translateText("No properties found.")}</p>}
         {filtered.map((property) => (
           <button
             key={property.id}

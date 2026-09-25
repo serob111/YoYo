@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -16,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function PropertiesPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -34,21 +37,20 @@ export default function PropertiesPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Properties</h1>
+        <h1 className="text-xl font-semibold">{translateText("Properties")}</h1>
         <div className="flex items-center gap-2">
           {organization && (
             <Button variant="outline" nativeButton={false} render={<a href={`/storefront/${organization.slug}`} target="_blank" rel="noreferrer" />}>
-              View public storefront
-            </Button>
+               {translateText("View public storefront")} </Button>
           )}
           {canManage && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger render={<Button />}>New property</DialogTrigger>
+              <DialogTrigger render={<Button />}>{translateText("New property")}</DialogTrigger>
               <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>New property</DialogTitle>
+                  <DialogTitle>{translateText("New property")}</DialogTitle>
                 </DialogHeader>
-                <PropertyForm onSubmit={handleCreate} submitLabel="Create" isPending={createProperty.isPending} />
+                <PropertyForm onSubmit={handleCreate} submitLabel={translateText("Create")} isPending={createProperty.isPending} />
               </DialogContent>
             </Dialog>
           )}
@@ -64,20 +66,20 @@ export default function PropertiesPage() {
           </div>
         )}
 
-        {!isLoading && properties.length === 0 && <p className="text-sm text-muted-foreground">No properties yet.</p>}
+        {!isLoading && properties.length === 0 && <p className="text-sm text-muted-foreground">{translateText("No properties yet.")}</p>}
 
         {properties.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Transaction</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Bedrooms</TableHead>
-                <TableHead>Area</TableHead>
-                <TableHead>Location</TableHead>
+                <TableHead>{translateText("Title")}</TableHead>
+                <TableHead>{translateText("Transaction")}</TableHead>
+                <TableHead>{translateText("Type")}</TableHead>
+                <TableHead>{translateText("Status")}</TableHead>
+                <TableHead>{translateText("Price")}</TableHead>
+                <TableHead>{translateText("Bedrooms")}</TableHead>
+                <TableHead>{translateText("Area")}</TableHead>
+                <TableHead>{translateText("Location")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,12 +90,12 @@ export default function PropertiesPage() {
                       {property.title}
                     </Link>
                   </TableCell>
-                  <TableCell>{property.transactionType === "RENT" ? "Rent" : "Sale"}</TableCell>
+                  <TableCell>{property.transactionType === "RENT" ? translateText("Rent") : translateText("Sale")}</TableCell>
                   <TableCell>{property.propertyType}</TableCell>
                   <TableCell>
                     <PropertyStatusBadge status={property.status} />
                   </TableCell>
-                  <TableCell>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod)}</TableCell>
+                  <TableCell>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod, locale)}</TableCell>
                   <TableCell>{property.bedrooms ?? "—"}</TableCell>
                   <TableCell>{property.areaSqm != null ? `${property.areaSqm} m²` : "—"}</TableCell>
                   <TableCell>{[property.district, property.city, property.country].filter(Boolean).join(", ") || "—"}</TableCell>
@@ -105,7 +107,7 @@ export default function PropertiesPage() {
 
         {hasNextPage && (
           <Button variant="ghost" className="mt-2" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
-            {isFetchingNextPage ? "Loading..." : "Load more"}
+            {isFetchingNextPage ? translateText("Loading...") : translateText("Load more")}
           </Button>
         )}
       </div>

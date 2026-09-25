@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -30,15 +32,17 @@ import {
 const VIEWING_STATUSES = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"] as const;
 
 function Field({ label, value }: { label: string; value: string }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{translateText(label)}</dt>
       <dd className="text-sm">{value}</dd>
     </div>
   );
 }
 
 export default function PropertyDetailPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string; propertyId: string }>();
   const router = useRouter();
   const { organizationId, propertyId } = params;
@@ -96,8 +100,7 @@ export default function PropertyDetailPage() {
   return (
     <div className="max-w-2xl">
       <Link href={`/dashboard/${organizationId}/properties`} className="text-sm text-muted-foreground hover:underline">
-        ← Properties
-      </Link>
+         {translateText("← Properties")} </Link>
 
       <div className="mt-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -107,29 +110,27 @@ export default function PropertyDetailPage() {
         {canManage && (
           <div className="flex gap-2">
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger render={<Button variant="outline" />}>Edit</DialogTrigger>
+              <DialogTrigger render={<Button variant="outline" />}>{translateText("Edit")}</DialogTrigger>
               <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Edit property</DialogTitle>
+                  <DialogTitle>{translateText("Edit property")}</DialogTitle>
                 </DialogHeader>
-                <PropertyForm property={property} onSubmit={handleUpdate} submitLabel="Save" isPending={updateProperty.isPending} />
+                <PropertyForm property={property} onSubmit={handleUpdate} submitLabel={translateText("Save")} isPending={updateProperty.isPending} />
               </DialogContent>
             </Dialog>
 
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger render={<Button variant="destructive" />}>Delete</DialogTrigger>
+              <DialogTrigger render={<Button variant="destructive" />}>{translateText("Delete")}</DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Delete {property.title}?</DialogTitle>
-                  <DialogDescription>This can&apos;t be undone.</DialogDescription>
+                  <DialogTitle>{translateText("Delete")} {property.title}?</DialogTitle>
+                  <DialogDescription>{translateText("This can't be undone.")}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                    Cancel
-                  </Button>
+                     {translateText("Cancel")} </Button>
                   <Button variant="destructive" disabled={deleteProperty.isPending} onClick={handleDelete}>
-                    Delete
-                  </Button>
+                     {translateText("Delete")} </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -140,34 +141,34 @@ export default function PropertyDetailPage() {
       {property.description && <p className="mt-2 text-sm text-muted-foreground">{property.description}</p>}
 
       <dl className="mt-6 grid grid-cols-3 gap-4">
-        <Field label="Transaction" value={property.transactionType === "RENT" ? "For rent" : "For sale"} />
-        <Field label="Price" value={formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod)} />
-        <Field label="Visibility" value={property.visibility} />
-        <Field label="Type" value={property.propertyType} />
-        <Field label="Country" value={property.country ?? "—"} />
-        <Field label="City" value={property.city ?? "—"} />
-        <Field label="District" value={property.district ?? "—"} />
-        <Field label="Address" value={property.address ?? "—"} />
-        <Field label="Bedrooms" value={property.bedrooms != null ? String(property.bedrooms) : "—"} />
-        <Field label="Bathrooms" value={property.bathrooms != null ? String(property.bathrooms) : "—"} />
-        <Field label="Area" value={property.areaSqm != null ? `${property.areaSqm} m²` : "—"} />
-        <Field label="Floor" value={property.floor != null ? String(property.floor) : "—"} />
-        <Field label="Total floors" value={property.totalFloors != null ? String(property.totalFloors) : "—"} />
-        <Field label="Condition" value={property.condition ?? "—"} />
-        <Field label="Building type" value={property.buildingType ?? "—"} />
+        <Field label={translateText("Transaction")} value={property.transactionType === "RENT" ? "For rent" : "For sale"} />
+        <Field label={translateText("Price")} value={formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod, locale)} />
+        <Field label={translateText("Visibility")} value={property.visibility} />
+        <Field label={translateText("Type")} value={property.propertyType} />
+        <Field label={translateText("Country")} value={property.country ?? "—"} />
+        <Field label={translateText("City")} value={property.city ?? "—"} />
+        <Field label={translateText("District")} value={property.district ?? "—"} />
+        <Field label={translateText("Address")} value={property.address ?? "—"} />
+        <Field label={translateText("Bedrooms")} value={property.bedrooms != null ? String(property.bedrooms) : "—"} />
+        <Field label={translateText("Bathrooms")} value={property.bathrooms != null ? String(property.bathrooms) : "—"} />
+        <Field label={translateText("Area")} value={property.areaSqm != null ? `${property.areaSqm} m²` : "—"} />
+        <Field label={translateText("Floor")} value={property.floor != null ? String(property.floor) : "—"} />
+        <Field label={translateText("Total floors")} value={property.totalFloors != null ? String(property.totalFloors) : "—"} />
+        <Field label={translateText("Condition")} value={property.condition ?? "—"} />
+        <Field label={translateText("Building type")} value={property.buildingType ?? "—"} />
         {property.transactionType === "RENT" && (
           <>
-            <Field label="Deposit" value={formatCents(property.depositCents, property.currency)} />
-            <Field label="Min. rental period" value={property.minRentalPeriodDays != null ? `${property.minRentalPeriodDays} days` : "—"} />
-            <Field label="Available from" value={property.availableFrom ? new Date(property.availableFrom).toLocaleDateString() : "—"} />
+            <Field label={translateText("Deposit")} value={formatCents(property.depositCents, property.currency, locale)} />
+            <Field label={translateText("Min. rental period")} value={property.minRentalPeriodDays != null ? `${property.minRentalPeriodDays} days` : "—"} />
+            <Field label={translateText("Available from")} value={property.availableFrom ? new Date(property.availableFrom).toLocaleDateString(intlLocale) : "—"} />
           </>
         )}
       </dl>
 
       <div className="mt-8">
-        <h2 className="text-sm font-semibold">Linked leads</h2>
+        <h2 className="text-sm font-semibold">{translateText("Linked leads")}</h2>
         <div className="mt-2 flex flex-col gap-2">
-          {property.leads.length === 0 && <p className="text-sm text-muted-foreground">No leads linked yet.</p>}
+          {property.leads.length === 0 && <p className="text-sm text-muted-foreground">{translateText("No leads linked yet.")}</p>}
           {property.leads.map(({ lead }) => (
             <div key={lead.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
               <Link href={`/dashboard/${organizationId}/leads/${lead.id}`} className="hover:underline">
@@ -175,8 +176,7 @@ export default function PropertyDetailPage() {
               </Link>
               {canManage && (
                 <Button variant="ghost" size="sm" disabled={unlinkLead.isPending} onClick={() => unlinkLead.mutate(lead.id)}>
-                  Unlink
-                </Button>
+                   {translateText("Unlink")} </Button>
               )}
             </div>
           ))}
@@ -187,21 +187,20 @@ export default function PropertyDetailPage() {
               <LeadPicker organizationId={organizationId} selected={linkPick} onSelect={setLinkPick} />
             </div>
             <Button size="sm" variant="outline" disabled={!linkPick || linkLead.isPending} onClick={handleLinkLead}>
-              Link
-            </Button>
+               {translateText("Link")} </Button>
           </div>
         )}
       </div>
 
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Viewings</h2>
+          <h2 className="text-sm font-semibold">{translateText("Viewings")}</h2>
           {canManage && (
             <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-              <DialogTrigger render={<Button size="sm" variant="outline" />}>Schedule viewing</DialogTrigger>
+              <DialogTrigger render={<Button size="sm" variant="outline" />}>{translateText("Schedule viewing")}</DialogTrigger>
               <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Schedule a viewing</DialogTitle>
+                  <DialogTitle>{translateText("Schedule a viewing")}</DialogTitle>
                 </DialogHeader>
                 <ViewingForm
                   organizationId={organizationId}
@@ -214,12 +213,12 @@ export default function PropertyDetailPage() {
           )}
         </div>
         <div className="mt-2 flex flex-col gap-2">
-          {(!viewings || viewings.length === 0) && <p className="text-sm text-muted-foreground">No viewings scheduled.</p>}
+          {(!viewings || viewings.length === 0) && <p className="text-sm text-muted-foreground">{translateText("No viewings scheduled.")}</p>}
           {viewings?.map((viewing) => (
             <div key={viewing.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
               <div>
                 <div>{viewing.leadTitle}</div>
-                <div className="text-xs text-muted-foreground">{new Date(viewing.scheduledFor).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">{new Date(viewing.scheduledFor).toLocaleString(intlLocale)}</div>
               </div>
               {canManage ? (
                 <Select value={viewing.status} onValueChange={(v) => v && updateViewingStatus.mutate({ viewingId: viewing.id, status: v as (typeof VIEWING_STATUSES)[number] })}>
@@ -229,13 +228,13 @@ export default function PropertyDetailPage() {
                   <SelectContent>
                     {VIEWING_STATUSES.map((status) => (
                       <SelectItem key={status} value={status}>
-                        {status}
+                        {translateText(status)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : (
-                <Badge>{viewing.status}</Badge>
+                <Badge>{translateText(viewing.status)}</Badge>
               )}
             </div>
           ))}

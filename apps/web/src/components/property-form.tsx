@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import type { PropertyDto, UpsertPropertyInput } from "@yoyo/contracts";
 import { Input } from "@/components/ui/input";
@@ -121,6 +123,7 @@ export function PropertyForm({
   submitLabel: string;
   isPending: boolean;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const [values, setValues] = useState<PropertyFormValues>(() => toFormValues(property));
 
   function set<K extends keyof PropertyFormValues>(key: K, value: PropertyFormValues[K]) {
@@ -136,71 +139,65 @@ export function PropertyForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-3">
         <label className="grid gap-1 text-sm font-medium">
-          Title
-          <Input required value={values.title} onChange={(e) => set("title", e.target.value)} />
+           {translateText("Title")} <Input required value={values.title} onChange={(e) => set("title", e.target.value)} />
         </label>
 
         <label className="grid gap-1 text-sm font-medium">
-          Description
-          <Textarea value={values.description} onChange={(e) => set("description", e.target.value)} />
+           {translateText("Description")} <Textarea value={values.description} onChange={(e) => set("description", e.target.value)} />
         </label>
 
         <div className="grid grid-cols-4 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Transaction
-            <Select value={values.transactionType} onValueChange={(v) => v && set("transactionType", v as PropertyFormValues["transactionType"])}>
+             {translateText("Transaction")} <Select value={values.transactionType} onValueChange={(v) => v && set("transactionType", v as PropertyFormValues["transactionType"])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {TRANSACTION_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {TRANSACTION_TYPE_LABELS[type]}
+                    {translateText(TRANSACTION_TYPE_LABELS[type])}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Type
-            <Select value={values.propertyType} onValueChange={(v) => set("propertyType", v as PropertyFormValues["propertyType"])}>
+             {translateText("Type")} <Select value={values.propertyType} onValueChange={(v) => set("propertyType", v as PropertyFormValues["propertyType"])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROPERTY_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {type}
+                    {translateText(type)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Status
-            <Select value={values.status} onValueChange={(v) => set("status", v as PropertyFormValues["status"])}>
+             {translateText("Status")} <Select value={values.status} onValueChange={(v) => set("status", v as PropertyFormValues["status"])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROPERTY_STATUSES.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status}
+                    {translateText(status)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Visibility
-            <Select value={values.visibility} onValueChange={(v) => set("visibility", v as PropertyFormValues["visibility"])}>
+             {translateText("Visibility")} <Select value={values.visibility} onValueChange={(v) => set("visibility", v as PropertyFormValues["visibility"])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROPERTY_VISIBILITIES.map((visibility) => (
                   <SelectItem key={visibility} value={visibility}>
-                    {VISIBILITY_LABELS[visibility]}
+                    {translateText(VISIBILITY_LABELS[visibility])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -210,20 +207,18 @@ export function PropertyForm({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            {values.transactionType === "RENT" ? "Rent" : "Price"}
-            <Input type="number" min="0" step="1" placeholder="e.g. 175000" value={values.price} onChange={(e) => set("price", e.target.value)} />
+            {values.transactionType === "RENT" ? translateText("Rent") : translateText("Price")}
+            <Input type="number" min="0" step="1" placeholder={translateText("e.g. 175000")} value={values.price} onChange={(e) => set("price", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Currency
-            <Input maxLength={3} value={values.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
+             {translateText("Currency")} <Input maxLength={3} value={values.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
           </label>
         </div>
 
         {values.transactionType === "RENT" && (
           <div className="grid grid-cols-4 gap-3">
             <label className="grid gap-1 text-sm font-medium">
-              Billing period
-              <Select
+               {translateText("Billing period")} <Select
                 value={values.rentBillingPeriod}
                 onValueChange={(v) => v && set("rentBillingPeriod", v as PropertyFormValues["rentBillingPeriod"])}
               >
@@ -233,77 +228,63 @@ export function PropertyForm({
                 <SelectContent>
                   {RENT_BILLING_PERIODS.map((period) => (
                     <SelectItem key={period} value={period}>
-                      {period}
+                      {translateText(period)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Deposit
-              <Input type="number" min="0" step="1" value={values.deposit} onChange={(e) => set("deposit", e.target.value)} />
+               {translateText("Deposit")} <Input type="number" min="0" step="1" value={values.deposit} onChange={(e) => set("deposit", e.target.value)} />
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Min. rental (days)
-              <Input type="number" min="0" value={values.minRentalPeriodDays} onChange={(e) => set("minRentalPeriodDays", e.target.value)} />
+               {translateText("Min. rental (days)")} <Input type="number" min="0" value={values.minRentalPeriodDays} onChange={(e) => set("minRentalPeriodDays", e.target.value)} />
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Available from
-              <Input type="date" value={values.availableFrom} onChange={(e) => set("availableFrom", e.target.value)} />
+               {translateText("Available from")} <Input type="date" value={values.availableFrom} onChange={(e) => set("availableFrom", e.target.value)} />
             </label>
           </div>
         )}
 
         <div className="grid grid-cols-4 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Country
-            <Input placeholder="e.g. UAE" value={values.country} onChange={(e) => set("country", e.target.value)} />
+             {translateText("Country")} <Input placeholder={translateText("e.g. UAE")} value={values.country} onChange={(e) => set("country", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            City
-            <Input value={values.city} onChange={(e) => set("city", e.target.value)} />
+             {translateText("City")} <Input value={values.city} onChange={(e) => set("city", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            District
-            <Input value={values.district} onChange={(e) => set("district", e.target.value)} />
+             {translateText("District")} <Input value={values.district} onChange={(e) => set("district", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Address
-            <Input value={values.address} onChange={(e) => set("address", e.target.value)} />
+             {translateText("Address")} <Input value={values.address} onChange={(e) => set("address", e.target.value)} />
           </label>
         </div>
 
         <div className="grid grid-cols-4 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Bedrooms
-            <Input type="number" min="0" value={values.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} />
+             {translateText("Bedrooms")} <Input type="number" min="0" value={values.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Bathrooms
-            <Input type="number" min="0" value={values.bathrooms} onChange={(e) => set("bathrooms", e.target.value)} />
+             {translateText("Bathrooms")} <Input type="number" min="0" value={values.bathrooms} onChange={(e) => set("bathrooms", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Area (m&sup2;)
-            <Input type="number" min="0" value={values.areaSqm} onChange={(e) => set("areaSqm", e.target.value)} />
+             {translateText("Area (m²)")} <Input type="number" min="0" value={values.areaSqm} onChange={(e) => set("areaSqm", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Floor
-            <Input type="number" value={values.floor} onChange={(e) => set("floor", e.target.value)} />
+             {translateText("Floor")} <Input type="number" value={values.floor} onChange={(e) => set("floor", e.target.value)} />
           </label>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Total floors
-            <Input type="number" value={values.totalFloors} onChange={(e) => set("totalFloors", e.target.value)} />
+             {translateText("Total floors")} <Input type="number" value={values.totalFloors} onChange={(e) => set("totalFloors", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Condition
-            <Input placeholder="e.g. Renovated" value={values.condition} onChange={(e) => set("condition", e.target.value)} />
+             {translateText("Condition")} <Input placeholder={translateText("e.g. Renovated")} value={values.condition} onChange={(e) => set("condition", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Building type
-            <Input placeholder="e.g. Brick" value={values.buildingType} onChange={(e) => set("buildingType", e.target.value)} />
+             {translateText("Building type")} <Input placeholder={translateText("e.g. Brick")} value={values.buildingType} onChange={(e) => set("buildingType", e.target.value)} />
           </label>
         </div>
       </div>

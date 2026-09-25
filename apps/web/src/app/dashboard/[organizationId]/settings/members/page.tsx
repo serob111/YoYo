@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import { ORGANIZATION_ROLES, type OrganizationRole } from "@yoyo/permissions";
@@ -7,6 +9,7 @@ import { useChangeMemberRole, useInviteMember, useMembers, useRemoveMember } fro
 import { ApiRequestError } from "@/lib/api-client";
 
 export default function MembersSettingsPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data, isLoading } = useMembers(organizationId);
@@ -31,13 +34,13 @@ export default function MembersSettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-xl font-semibold">Members</h1>
+      <h1 className="text-xl font-semibold">{translateText("Members")}</h1>
 
       <form onSubmit={onInvite} className="mt-4 flex gap-2">
         <input
           className="flex-1 rounded border border-slate-300 p-2"
           type="email"
-          placeholder="Email to invite"
+          placeholder={translateText("Email to invite")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -50,21 +53,20 @@ export default function MembersSettingsPage() {
           ))}
         </select>
         <button className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50" type="submit" disabled={invite.isPending}>
-          Invite
-        </button>
+           {translateText("Invite")} </button>
       </form>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600">{translateText(error)}</p>}
 
       {isLoading ? (
-        <p className="mt-6 text-slate-500">Loading members...</p>
+        <p className="mt-6 text-slate-500">{translateText("Loading members...")}</p>
       ) : (
         <table className="mt-6 w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-500">
-              <th className="py-2">Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th className="py-2">{translateText("Name")}</th>
+              <th>{translateText("Email")}</th>
+              <th>{translateText("Role")}</th>
+              <th>{translateText("Status")}</th>
               <th />
             </tr>
           </thead>
@@ -94,8 +96,7 @@ export default function MembersSettingsPage() {
                 <td>
                   {member.role !== "OWNER" && (
                     <button className="text-red-600 underline" onClick={() => remove.mutate(member.id)}>
-                      Remove
-                    </button>
+                       {translateText("Remove")} </button>
                   )}
                 </td>
               </tr>

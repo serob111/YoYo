@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n/provider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ConversationAutomationState } from "@yoyo/contracts";
@@ -17,5 +20,6 @@ const LABELS: Record<ConversationAutomationState, string> = {
 };
 
 export function AutomationStateBadge({ state }: { state: ConversationAutomationState }) {
-  return <Badge className={cn(STYLES[state])}>{LABELS[state]}</Badge>;
+  const { t: translateText, locale, intlLocale } = useI18n();
+  return <Badge className={cn(STYLES[state])}>{translateText(LABELS[state])}</Badge>;
 }

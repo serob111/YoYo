@@ -1,10 +1,13 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 
 export function TopbarSearch({ organizationId }: { organizationId: string }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const router = useRouter();
   const [value, setValue] = useState("");
 
@@ -20,7 +23,7 @@ export function TopbarSearch({ organizationId }: { organizationId: string }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Search leads..."
+        placeholder={translateText("Search leads...")}
         className="w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
       />
     </label>

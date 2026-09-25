@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import {
@@ -44,6 +46,7 @@ function roleLabel(role: string): string {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const pathname = usePathname();
   const router = useRouter();
@@ -70,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.name.split(" ")[0];
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const today = new Date().toLocaleDateString(intlLocale, { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -114,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               >
                 <Icon size={20} weight={isActive ? "fill" : "regular"} />
-                {item.label}
+                {translateText(item.label)}
               </Link>
             );
           })}
@@ -122,7 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="mt-auto flex flex-col gap-4">
           <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 text-sm">
-            <span className="text-xs font-medium text-muted-foreground">Connections</span>
+            <span className="text-xs font-medium text-muted-foreground">{translateText("Connections")}</span>
             <div className="flex items-center gap-2.5">
               <InstagramLogo size={18} weight="fill" color="#df3e93" />
               <span className="flex-1 truncate">Instagram</span>
@@ -139,9 +142,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {user && <InitialsAvatar name={user.name} size="sm" />}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{user?.name}</p>
-              {organization && <p className="truncate text-xs text-muted-foreground">{roleLabel(organization.myRole)}</p>}
+              {organization && <p className="truncate text-xs text-muted-foreground">{translateText(roleLabel(organization.myRole))}</p>}
             </div>
-            <button onClick={() => void logout()} aria-label="Log out" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <button onClick={() => void logout()} aria-label={translateText("Log out")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
               <SignOut size={18} />
             </button>
           </div>
@@ -152,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="flex h-[92px] shrink-0 items-center gap-6 border-b border-border px-7">
           <div className="min-w-0">
             <h1 className="truncate text-[28px] font-extrabold tracking-tight">
-              {greeting}
+              {translateText(greeting)}
               {firstName ? `, ${firstName}` : ""}!
             </h1>
             <p className="text-sm text-muted-foreground">{today}</p>
@@ -163,7 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <InitialsAvatar name={user.name} />
               <div className="hidden sm:block">
                 <p className="text-sm font-semibold leading-tight">{user.name}</p>
-                {organization && <p className="text-xs leading-tight text-muted-foreground">{roleLabel(organization.myRole)}</p>}
+                {organization && <p className="text-xs leading-tight text-muted-foreground">{translateText(roleLabel(organization.myRole))}</p>}
               </div>
             </div>
           )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Bathtub, Bed, CheckCircle, Clock, Ruler, WarningCircle, X } from "@phosphor-icons/react";
 import type { BookViewingResult, StorefrontAvailability, StorefrontProperty } from "@yoyo/contracts";
@@ -10,13 +12,13 @@ import styles from "./storefront.module.css";
 
 const VISIBLE_DAYS = 10;
 
-function buildDateOptions(): { iso: string; weekday: string; dayNum: string }[] {
+function buildDateOptions(intlLocale: string): { iso: string; weekday: string; dayNum: string }[] {
   const now = new Date();
   return Array.from({ length: VISIBLE_DAYS }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     return {
       iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
-      weekday: new Intl.DateTimeFormat("ru-RU", { weekday: "short" }).format(d),
+      weekday: new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d),
       dayNum: String(d.getDate())
     };
   });
@@ -31,7 +33,8 @@ export function BookingModal({
   property: StorefrontProperty;
   onClose: () => void;
 }) {
-  const dateOptions = useMemo(buildDateOptions, []);
+  const { t: translateText, locale, intlLocale } = useI18n();
+  const dateOptions = useMemo(() => buildDateOptions(intlLocale), [intlLocale]);
   const [selectedDate, setSelectedDate] = useState(dateOptions[0]!.iso);
   const [slots, setSlots] = useState<string[] | null>(null);
   const [slotsError, setSlotsError] = useState(false);
@@ -105,14 +108,14 @@ export function BookingModal({
   return (
     <div className={styles.overlay} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
-        <button type="button" className={styles.modalClose} aria-label="Закрыть" onClick={onClose}>
+        <button type="button" className={styles.modalClose} aria-label={translateText("Закрыть")} onClick={onClose}>
           <X />
         </button>
 
         <div className={styles.modalArt}>
           <PropertyArt propertyType={property.propertyType} className={styles.modalArtTile} />
           <h2 className={styles.modalTitle}>{property.title}</h2>
-          <div className={styles.modalPrice}>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod)}</div>
+          <div className={styles.modalPrice}>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod, locale)}</div>
           {location && <p className={styles.cardLocation}>{location}</p>}
           {property.description && <p className={styles.modalDescription}>{property.description}</p>}
 
@@ -121,8 +124,7 @@ export function BookingModal({
               <div className={styles.modalSpec}>
                 <dt>
                   <Bed weight="bold" style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />
-                  Спальни
-                </dt>
+                   {translateText("Спальни")} </dt>
                 <dd>{property.bedrooms}</dd>
               </div>
             )}
@@ -130,8 +132,7 @@ export function BookingModal({
               <div className={styles.modalSpec}>
                 <dt>
                   <Bathtub weight="bold" style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />
-                  Санузлы
-                </dt>
+                   {translateText("Санузлы")} </dt>
                 <dd>{property.bathrooms}</dd>
               </div>
             )}
@@ -139,15 +140,14 @@ export function BookingModal({
               <div className={styles.modalSpec}>
                 <dt>
                   <Ruler weight="bold" style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />
-                  Площадь
-                </dt>
-                <dd>{property.areaSqm} м²</dd>
+                   {translateText("Площадь")} </dt>
+                <dd>{property.areaSqm}  {translateText("м²")}</dd>
               </div>
             )}
             {property.transactionType === "RENT" && property.depositCents != null && (
               <div className={styles.modalSpec}>
-                <dt>Депозит</dt>
-                <dd>{formatCents(property.depositCents, property.currency)}</dd>
+                <dt>{translateText("Депозит")}</dt>
+                <dd>{formatCents(property.depositCents, property.currency, locale)}</dd>
               </div>
             )}
           </dl>
@@ -159,18 +159,17 @@ export function BookingModal({
               <div className={styles.successIcon}>
                 <CheckCircle weight="fill" />
               </div>
-              <div className={styles.successTitle}>Показ забронирован!</div>
+              <div className={styles.successTitle}>{translateText("Показ забронирован!")}</div>
               <p className={styles.successDetail}>
-                {new Date(result.scheduledFor).toLocaleString("ru-RU", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                {new Date(result.scheduledFor).toLocaleString(intlLocale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                 <br />
                 {result.propertyTitle} · {result.organizationName}
                 <br />
-                Мы свяжемся с вами по указанному телефону для подтверждения.
-              </p>
+                 {translateText("Мы свяжемся с вами по указанному телефону для подтверждения.")} </p>
             </div>
           ) : (
             <>
-              <div className={styles.stepLabel}>Выберите дату</div>
+              <div className={styles.stepLabel}>{translateText("Выберите дату")}</div>
               <div className={styles.dateStrip}>
                 {dateOptions.map((d) => (
                   <button key={d.iso} type="button" className={styles.dayPill} data-active={d.iso === selectedDate} onClick={() => setSelectedDate(d.iso)}>
@@ -180,15 +179,15 @@ export function BookingModal({
                 ))}
               </div>
 
-              <div className={styles.stepLabel}>Свободное время</div>
-              {slotsError && <p className={styles.slotsEmpty}>Не удалось загрузить время. Попробуйте выбрать другую дату.</p>}
-              {!slotsError && slots === null && <p className={styles.slotsEmpty}>Загрузка…</p>}
-              {!slotsError && slots !== null && slots.length === 0 && <p className={styles.slotsEmpty}>На эту дату свободного времени нет.</p>}
+              <div className={styles.stepLabel}>{translateText("Свободное время")}</div>
+              {slotsError && <p className={styles.slotsEmpty}>{translateText("Не удалось загрузить время. Попробуйте выбрать другую дату.")}</p>}
+              {!slotsError && slots === null && <p className={styles.slotsEmpty}>{translateText("Загрузка…")}</p>}
+              {!slotsError && slots !== null && slots.length === 0 && <p className={styles.slotsEmpty}>{translateText("На эту дату свободного времени нет.")}</p>}
               {!slotsError && slots !== null && slots.length > 0 && (
                 <div className={styles.slotGrid}>
                   {slots.map((slot) => (
                     <button key={slot} type="button" className={styles.slot} data-active={slot === selectedSlot} onClick={() => setSelectedSlot(slot)}>
-                      {new Date(slot).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(slot).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })}
                     </button>
                   ))}
                 </div>
@@ -196,40 +195,36 @@ export function BookingModal({
 
               {selectedSlot && (
                 <form className={styles.form} onSubmit={handleSubmit}>
-                  <div className={styles.stepLabel}>Контактные данные</div>
+                  <div className={styles.stepLabel}>{translateText("Контактные данные")}</div>
                   <div className={styles.selectedSlot}>
                     <Clock weight="bold" />
-                    {new Date(selectedSlot).toLocaleString("ru-RU", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                    {new Date(selectedSlot).toLocaleString(intlLocale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                   </div>
                   <label className={styles.field}>
-                    Имя
-                    <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Как к вам обращаться" />
+                     {translateText("Имя")} <input required value={name} onChange={(e) => setName(e.target.value)} placeholder={translateText("Как к вам обращаться")} />
                   </label>
                   <div className={styles.fieldRow}>
                     <label className={styles.field}>
-                      Телефон
-                      <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 900 000-00-00" />
+                       {translateText("Телефон")} <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 900 000-00-00" />
                     </label>
                     <label className={styles.field}>
-                      Email (необязательно)
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                       {translateText("Email (необязательно)")} <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
                     </label>
                   </div>
                   <label className={styles.field}>
-                    Комментарий (необязательно)
-                    <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Например: удобно после 18:00" />
+                     {translateText("Комментарий (необязательно)")} <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={translateText("Например: удобно после 18:00")} />
                   </label>
 
                   {submitError && (
                     <p className={styles.errorText}>
                       <WarningCircle weight="bold" style={{ display: "inline", verticalAlign: "-2px", marginRight: 4 }} />
-                      {submitError}
+                      {translateText(submitError)}
                     </p>
                   )}
 
                   <div className={styles.submitRow}>
                     <button type="submit" className={styles.submitButton} disabled={submitting || !name || !phone}>
-                      {submitting ? "Отправляем…" : "Забронировать показ"}
+                      {submitting ? translateText("Отправляем…") : translateText("Забронировать показ")}
                     </button>
                   </div>
                 </form>

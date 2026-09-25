@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { WarningCircle } from "@phosphor-icons/react";
@@ -9,6 +11,7 @@ import { AccountShell } from "../../account-shell";
 import styles from "../../account.module.css";
 
 export default function CreateOrganizationPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const router = useRouter();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,20 +32,19 @@ export default function CreateOrganizationPage() {
   }
 
   return (
-    <AccountShell title="Create your business" subtitle="This is the organization your AI employee will work for.">
+    <AccountShell title={translateText("Create your business")} subtitle={translateText("This is the organization your AI employee will work for.")}>
       <form onSubmit={onSubmit} className={styles.form}>
         <label className={styles.field}>
-          Business name
-          <input placeholder="e.g. Sunrise Bakery" value={name} onChange={(e) => setName(e.target.value)} required />
+           {translateText("Business name")} <input placeholder={translateText("e.g. Sunrise Bakery")} value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         {error && (
           <p className={styles.error}>
             <WarningCircle weight="bold" style={{ flexShrink: 0, marginTop: 2 }} />
-            {error}
+            {translateText(error)}
           </p>
         )}
         <button className={styles.submit} type="submit" disabled={loading}>
-          {loading ? "Creating…" : "Create organization"}
+          {loading ? translateText("Creating…") : translateText("Create organization")}
         </button>
       </form>
     </AccountShell>

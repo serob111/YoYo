@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { ChatCircle, InstagramLogo } from "@phosphor-icons/react";
@@ -11,6 +13,7 @@ import { ConversationList } from "./conversation-list";
 import { ConversationThread } from "./conversation-thread";
 
 export default function InboxPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const searchParams = useSearchParams();
   const organizationId = params.organizationId;
@@ -30,14 +33,14 @@ export default function InboxPage() {
           hasConnectedAccount ? (
             <EmptyState
               icon={ChatCircle}
-              title="No conversations yet"
-              description="New messages from Instagram or TikTok will show up here automatically."
+              title={translateText("No conversations yet")}
+              description={translateText("New messages from Instagram or TikTok will show up here automatically.")}
             />
           ) : (
             <EmptyState
               icon={InstagramLogo}
-              title="Connect a channel to start"
-              description="Link your Instagram or TikTok account so customer messages start flowing in."
+              title={translateText("Connect a channel to start")}
+              description={translateText("Link your Instagram or TikTok account so customer messages start flowing in.")}
               action={{ label: "Connect Instagram", href: connectAccountHref(organizationId, "instagram"), external: true }}
             />
           )
@@ -50,7 +53,7 @@ export default function InboxPage() {
           <ConversationThread organizationId={organizationId} conversation={selectedConversation} currentUserId={user?.id} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            {conversations.length === 0 ? "Once you're connected, conversations will open here." : "Select a conversation to view messages."}
+            {conversations.length === 0 ? translateText("Once you're connected, conversations will open here.") : translateText("Select a conversation to view messages.")}
           </div>
         )}
       </div>

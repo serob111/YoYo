@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { VERTICAL_IDS } from "@yoyo/verticals";
@@ -15,6 +17,7 @@ const VERTICAL_LABELS: Record<(typeof VERTICAL_IDS)[number], string> = {
 };
 
 export default function VerticalSettingsPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -34,14 +37,12 @@ export default function VerticalSettingsPage() {
 
   return (
     <div className="max-w-md">
-      <h1 className="text-xl font-semibold">Vertical</h1>
+      <h1 className="text-xl font-semibold">{translateText("Vertical")}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Changes which product modules and navigation this organization sees. Switching is structural - existing data (properties, leads,
-        pipeline) is kept, not deleted.
-      </p>
+         {translateText("Changes which product modules and navigation this organization sees. Switching is structural - existing data (properties, leads, pipeline) is kept, not deleted.")} </p>
 
       <div className="mt-6">
-        <span className="text-sm font-medium">Current: {VERTICAL_LABELS[currentVertical]}</span>
+        <span className="text-sm font-medium">{translateText("Current:")} {translateText(VERTICAL_LABELS[currentVertical])}</span>
       </div>
 
       {canManage && (
@@ -53,7 +54,7 @@ export default function VerticalSettingsPage() {
             <SelectContent>
               {VERTICAL_IDS.map((id) => (
                 <SelectItem key={id} value={id}>
-                  {VERTICAL_LABELS[id]}
+                  {translateText(VERTICAL_LABELS[id])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -64,16 +65,14 @@ export default function VerticalSettingsPage() {
       <Dialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Switch to {pending ? VERTICAL_LABELS[pending] : ""}?</DialogTitle>
-            <DialogDescription>The dashboard navigation will change immediately for everyone in this organization.</DialogDescription>
+            <DialogTitle>{translateText("Switch to")} {pending ? VERTICAL_LABELS[pending] : ""}?</DialogTitle>
+            <DialogDescription>{translateText("The dashboard navigation will change immediately for everyone in this organization.")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPending(null)}>
-              Cancel
-            </Button>
+               {translateText("Cancel")} </Button>
             <Button disabled={updateVertical.isPending} onClick={confirmSwitch}>
-              Switch
-            </Button>
+               {translateText("Switch")} </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

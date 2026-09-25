@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -31,6 +33,7 @@ const LEAD_INTENT_LABELS: Record<LeadIntent, string> = {
 };
 
 export default function LeadDetailPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string; leadId: string }>();
   const { organizationId, leadId } = params;
   const { data: organization } = useOrganization(organizationId);
@@ -126,32 +129,31 @@ export default function LeadDetailPage() {
   return (
     <div className="max-w-2xl">
       <Link href={`/dashboard/${organizationId}/leads`} className="text-sm text-muted-foreground hover:underline">
-        ← Leads
-      </Link>
+         {translateText("← Leads")} </Link>
 
       <div className="mt-2 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{lead.title}</h1>
         {canManage && (
           <Dialog open={editOpen} onOpenChange={setEditOpen}>
-            <DialogTrigger render={<Button variant="outline" />}>Edit</DialogTrigger>
+            <DialogTrigger render={<Button variant="outline" />}>{translateText("Edit")}</DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>Edit lead</DialogTitle>
+                <DialogTitle>{translateText("Edit lead")}</DialogTitle>
               </DialogHeader>
-              <LeadForm organizationId={organizationId} onSubmit={handleUpdate} submitLabel="Save" isPending={updateLead.isPending} />
+              <LeadForm organizationId={organizationId} onSubmit={handleUpdate} submitLabel={translateText("Save")} isPending={updateLead.isPending} />
             </DialogContent>
           </Dialog>
         )}
       </div>
 
       <div className="mt-1 flex items-center gap-2">
-        <p className="text-sm text-muted-foreground">{formatCents(lead.valueCents, lead.currency)}</p>
-        {organization?.vertical === "real_estate" && lead.intent && <Badge variant="outline">{LEAD_INTENT_LABELS[lead.intent]}</Badge>}
+        <p className="text-sm text-muted-foreground">{formatCents(lead.valueCents, lead.currency, locale)}</p>
+        {organization?.vertical === "real_estate" && lead.intent && <Badge variant="outline">{translateText(LEAD_INTENT_LABELS[lead.intent])}</Badge>}
       </div>
 
       {pipeline && (
         <div className="mt-4 flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Stage:</span>
+          <span className="text-sm text-muted-foreground">{translateText("Stage:")}</span>
           <Select
             items={Object.fromEntries(pipeline.stages.map((s) => [s.id, s.name]))}
             value={lead.stageId}
@@ -174,14 +176,12 @@ export default function LeadDetailPage() {
 
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Buyer preference</h2>
+          <h2 className="text-sm font-semibold">{translateText("Buyer preference")}</h2>
           <div className="flex items-center gap-1">
             <Button size="sm" variant={prefType === "SALE" ? "default" : "outline"} onClick={() => setPrefType("SALE")}>
-              For sale
-            </Button>
+               {translateText("For sale")} </Button>
             <Button size="sm" variant={prefType === "RENT" ? "default" : "outline"} onClick={() => setPrefType("RENT")}>
-              For rent
-            </Button>
+               {translateText("For rent")} </Button>
           </div>
         </div>
         {prefLoading ? (
@@ -189,55 +189,55 @@ export default function LeadDetailPage() {
         ) : buyerPreference ? (
           <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Budget</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Budget")}</dt>
               <dd>
-                {buyerPreference.minPriceCents != null ? formatCents(buyerPreference.minPriceCents, buyerPreference.currency) : "—"}
+                {buyerPreference.minPriceCents != null ? formatCents(buyerPreference.minPriceCents, buyerPreference.currency, locale) : "—"}
                 {" – "}
-                {buyerPreference.maxPriceCents != null ? formatCents(buyerPreference.maxPriceCents, buyerPreference.currency) : "—"}
+                {buyerPreference.maxPriceCents != null ? formatCents(buyerPreference.maxPriceCents, buyerPreference.currency, locale) : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Property type</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Property type")}</dt>
               <dd>{buyerPreference.propertyType ?? "Any"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Bedrooms</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Bedrooms")}</dt>
               <dd>{buyerPreference.bedrooms ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Min. area</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Min. area")}</dt>
               <dd>{buyerPreference.minAreaSqm != null ? `${buyerPreference.minAreaSqm} m²` : "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Country</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Country")}</dt>
               <dd>{buyerPreference.country ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">City</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("City")}</dt>
               <dd>{buyerPreference.city ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Districts</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Districts")}</dt>
               <dd>{buyerPreference.districts.length > 0 ? buyerPreference.districts.join(", ") : "—"}</dd>
             </div>
             {buyerPreference.notes && (
               <div className="col-span-3">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Notes</dt>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{translateText("Notes")}</dt>
                 <dd>{buyerPreference.notes}</dd>
               </div>
             )}
           </dl>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">Not captured yet.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{translateText("Not captured yet.")}</p>
         )}
         {canManage && !prefLoading && (
           <Dialog open={prefFormOpen} onOpenChange={setPrefFormOpen}>
             <DialogTrigger render={<Button size="sm" variant="outline" className="mt-2" />}>
-              {buyerPreference ? "Edit preference" : "Add preferences"}
+              {buyerPreference ? translateText("Edit preference") : translateText("Add preferences")}
             </DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>{prefType === "SALE" ? "Buying preference" : "Renting preference"}</DialogTitle>
+                <DialogTitle>{prefType === "SALE" ? translateText("Buying preference") : translateText("Renting preference")}</DialogTitle>
               </DialogHeader>
               <BuyerPreferenceForm
                 transactionType={prefType}
@@ -251,26 +251,25 @@ export default function LeadDetailPage() {
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Follow-ups</h2>
+        <h2 className="text-sm font-semibold">{translateText("Follow-ups")}</h2>
         <div className="mt-2 flex flex-col gap-2">
           {followUpsLoading && <Skeleton className="h-14 w-full" />}
-          {!followUpsLoading && (followUps ?? []).length === 0 && <p className="text-sm text-muted-foreground">No follow-ups scheduled.</p>}
+          {!followUpsLoading && (followUps ?? []).length === 0 && <p className="text-sm text-muted-foreground">{translateText("No follow-ups scheduled.")}</p>}
           {followUps?.map((followUp) => {
             const config = followUp.actionConfig as { text?: string; title?: string };
             return (
               <div key={followUp.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2 text-sm">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <Badge variant={followUp.status === "PENDING" ? "default" : "outline"}>{followUp.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{followUp.createdByUserId ? "Manual" : "AI"}</span>
-                    <span className="text-xs text-muted-foreground">{new Date(followUp.scheduledFor).toLocaleString()}</span>
+                    <Badge variant={followUp.status === "PENDING" ? "default" : "outline"}>{translateText(followUp.status)}</Badge>
+                    <span className="text-xs text-muted-foreground">{followUp.createdByUserId ? translateText("Manual") : translateText("AI")}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(followUp.scheduledFor).toLocaleString(intlLocale)}</span>
                   </div>
                   <p className="mt-1 truncate">{followUp.actionType === "SEND_MESSAGE" ? config.text : config.title}</p>
                 </div>
                 {canManage && followUp.status === "PENDING" && (
                   <Button size="sm" variant="ghost" disabled={cancelFollowUp.isPending} onClick={() => cancelFollowUp.mutate(followUp.id)}>
-                    Cancel
-                  </Button>
+                     {translateText("Cancel")} </Button>
                 )}
               </div>
             );
@@ -284,14 +283,14 @@ export default function LeadDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SEND_MESSAGE">Send message</SelectItem>
-                  <SelectItem value="CREATE_TASK">Create task</SelectItem>
+                  <SelectItem value="SEND_MESSAGE">{translateText("Send message")}</SelectItem>
+                  <SelectItem value="CREATE_TASK">{translateText("Create task")}</SelectItem>
                 </SelectContent>
               </Select>
               <Input type="datetime-local" value={followUpSendAt} onChange={(e) => setFollowUpSendAt(e.target.value)} className="w-56" />
             </div>
             <Textarea
-              placeholder={followUpActionType === "SEND_MESSAGE" ? "Message to send…" : "Task title…"}
+              placeholder={followUpActionType === "SEND_MESSAGE" ? translateText("Message to send…") : translateText("Task title…")}
               value={followUpText}
               onChange={(e) => setFollowUpText(e.target.value)}
             />
@@ -301,22 +300,21 @@ export default function LeadDetailPage() {
               disabled={!followUpSendAt.trim() || !followUpText.trim() || createFollowUp.isPending}
               onClick={handleCreateFollowUp}
             >
-              Schedule follow-up
-            </Button>
+               {translateText("Schedule follow-up")} </Button>
           </div>
         )}
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Tasks</h2>
+        <h2 className="text-sm font-semibold">{translateText("Tasks")}</h2>
         <div className="mt-2 flex flex-col gap-2">
           {tasksLoading && <Skeleton className="h-10 w-full" />}
-          {!tasksLoading && (tasks ?? []).length === 0 && <p className="text-sm text-muted-foreground">No tasks yet.</p>}
+          {!tasksLoading && (tasks ?? []).length === 0 && <p className="text-sm text-muted-foreground">{translateText("No tasks yet.")}</p>}
           {tasks?.map((task) => (
             <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2 text-sm">
               <div className="min-w-0">
                 <p className={task.status === "DONE" ? "truncate line-through text-muted-foreground" : "truncate"}>{task.title}</p>
-                {task.dueAt && <p className="text-xs text-muted-foreground">Due {new Date(task.dueAt).toLocaleDateString()}</p>}
+                {task.dueAt && <p className="text-xs text-muted-foreground">{translateText("Due")} {new Date(task.dueAt).toLocaleDateString(intlLocale)}</p>}
               </div>
               {canManage ? (
                 <Select
@@ -327,30 +325,29 @@ export default function LeadDetailPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="OPEN">Open</SelectItem>
-                    <SelectItem value="DONE">Done</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="OPEN">{translateText("Open")}</SelectItem>
+                    <SelectItem value="DONE">{translateText("Done")}</SelectItem>
+                    <SelectItem value="CANCELLED">{translateText("Cancelled")}</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
-                <Badge variant="outline">{task.status}</Badge>
+                <Badge variant="outline">{translateText(task.status)}</Badge>
               )}
             </div>
           ))}
         </div>
         {canManage && (
           <div className="mt-3 flex items-center gap-2">
-            <Input placeholder="New task title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
+            <Input placeholder={translateText("New task title")} value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
             <Input type="date" value={newTaskDueAt} onChange={(e) => setNewTaskDueAt(e.target.value)} className="w-40" />
             <Button size="sm" variant="outline" disabled={!newTaskTitle.trim() || createTask.isPending} onClick={handleCreateTask}>
-              Add task
-            </Button>
+               {translateText("Add task")} </Button>
           </div>
         )}
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Tags</h2>
+        <h2 className="text-sm font-semibold">{translateText("Tags")}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {lead.tags.map(({ tag }) => (
             <Badge key={tag.id} className="gap-1">
@@ -362,14 +359,14 @@ export default function LeadDetailPage() {
               )}
             </Badge>
           ))}
-          {lead.tags.length === 0 && <span className="text-sm text-muted-foreground">No tags yet.</span>}
+          {lead.tags.length === 0 && <span className="text-sm text-muted-foreground">{translateText("No tags yet.")}</span>}
         </div>
         {canManage && (
           <div className="mt-2 flex items-center gap-2">
             {availableTags.length > 0 && (
               <Select onValueChange={(v) => typeof v === "string" && addTag.mutate(v)}>
                 <SelectTrigger size="sm">
-                  <SelectValue placeholder="Attach existing tag" />
+                  <SelectValue placeholder={translateText("Attach existing tag")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableTags.map((tag) => (
@@ -380,18 +377,17 @@ export default function LeadDetailPage() {
                 </SelectContent>
               </Select>
             )}
-            <Input placeholder="New tag name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} className="w-40" />
+            <Input placeholder={translateText("New tag name")} value={newTagName} onChange={(e) => setNewTagName(e.target.value)} className="w-40" />
             <Button size="sm" variant="outline" disabled={!newTagName.trim() || createTag.isPending} onClick={handleCreateAndAttachTag}>
-              Add tag
-            </Button>
+               {translateText("Add tag")} </Button>
           </div>
         )}
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Activity</h2>
+        <h2 className="text-sm font-semibold">{translateText("Activity")}</h2>
         <div className="mt-2 flex flex-col gap-2">
-          {lead.activities.length === 0 && <p className="text-sm text-muted-foreground">No activity yet.</p>}
+          {lead.activities.length === 0 && <p className="text-sm text-muted-foreground">{translateText("No activity yet.")}</p>}
           {lead.activities.map((activity) => (
             <div key={activity.id} className="rounded-lg border border-border p-2 text-sm">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{activity.type}</div>
@@ -401,10 +397,9 @@ export default function LeadDetailPage() {
         </div>
         {canManage && (
           <div className="mt-3 flex flex-col gap-2">
-            <Textarea placeholder="Add a note…" value={note} onChange={(e) => setNote(e.target.value)} />
+            <Textarea placeholder={translateText("Add a note…")} value={note} onChange={(e) => setNote(e.target.value)} />
             <Button size="sm" className="self-start" disabled={!note.trim() || addActivity.isPending} onClick={handleAddNote}>
-              Add note
-            </Button>
+               {translateText("Add note")} </Button>
           </div>
         )}
       </div>

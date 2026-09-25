@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -25,6 +27,7 @@ function toDatetimeLocal(iso: string): string {
 }
 
 function EditViewingForm({ viewing, onSubmit, isPending }: { viewing: ViewingListItem; onSubmit: (input: UpdateViewingInput) => void; isPending: boolean }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const [scheduledFor, setScheduledFor] = useState(toDatetimeLocal(viewing.scheduledFor));
   const [notes, setNotes] = useState(viewing.notes ?? "");
 
@@ -38,24 +41,22 @@ function EditViewingForm({ viewing, onSubmit, isPending }: { viewing: ViewingLis
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-3">
         <label className="grid gap-1 text-sm font-medium">
-          Date &amp; time
-          <Input type="datetime-local" required value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
+           {translateText("Date & time")} <Input type="datetime-local" required value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
         </label>
         <label className="grid gap-1 text-sm font-medium">
-          Notes
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+           {translateText("Notes")} <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
       </div>
       <DialogFooter>
         <Button type="submit" disabled={isPending || !scheduledFor}>
-          Save
-        </Button>
+           {translateText("Save")} </Button>
       </DialogFooter>
     </form>
   );
 }
 
 export default function ViewingsPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -81,13 +82,13 @@ export default function ViewingsPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Viewings</h1>
+        <h1 className="text-xl font-semibold">{translateText("Viewings")}</h1>
         {canManage && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<Button />}>Schedule viewing</DialogTrigger>
+            <DialogTrigger render={<Button />}>{translateText("Schedule viewing")}</DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>Schedule a viewing</DialogTitle>
+                <DialogTitle>{translateText("Schedule a viewing")}</DialogTitle>
               </DialogHeader>
               <ViewingForm organizationId={organizationId} onSubmit={handleCreate} isPending={createViewing.isPending} />
             </DialogContent>
@@ -96,17 +97,17 @@ export default function ViewingsPage() {
       </div>
 
       <div className="mt-6">
-        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-        {!isLoading && (!viewings || viewings.length === 0) && <p className="text-sm text-muted-foreground">No viewings scheduled yet.</p>}
+        {isLoading && <p className="text-sm text-muted-foreground">{translateText("Loading…")}</p>}
+        {!isLoading && (!viewings || viewings.length === 0) && <p className="text-sm text-muted-foreground">{translateText("No viewings scheduled yet.")}</p>}
 
         {viewings && viewings.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Property</TableHead>
-                <TableHead>Lead</TableHead>
-                <TableHead>Scheduled for</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{translateText("Property")}</TableHead>
+                <TableHead>{translateText("Lead")}</TableHead>
+                <TableHead>{translateText("Scheduled for")}</TableHead>
+                <TableHead>{translateText("Status")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,11 +125,10 @@ export default function ViewingsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {new Date(viewing.scheduledFor).toLocaleString()}
+                      {new Date(viewing.scheduledFor).toLocaleString(intlLocale)}
                       {canManage && (
                         <Button variant="ghost" size="sm" onClick={() => setEditingViewing(viewing)}>
-                          Edit
-                        </Button>
+                           {translateText("Edit")} </Button>
                       )}
                     </div>
                   </TableCell>
@@ -144,7 +144,7 @@ export default function ViewingsPage() {
                         <SelectContent>
                           {VIEWING_STATUSES.map((status) => (
                             <SelectItem key={status} value={status}>
-                              {status}
+                              {translateText(status)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -163,7 +163,7 @@ export default function ViewingsPage() {
       <Dialog open={!!editingViewing} onOpenChange={(open) => !open && setEditingViewing(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reschedule viewing</DialogTitle>
+            <DialogTitle>{translateText("Reschedule viewing")}</DialogTitle>
           </DialogHeader>
           {editingViewing && <EditViewingForm viewing={editingViewing} onSubmit={handleEdit} isPending={updateViewing.isPending} />}
         </DialogContent>

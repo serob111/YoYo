@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -20,6 +22,7 @@ export default function InstagramOAuthErrorPage() {
 }
 
 function InstagramOAuthErrorContent() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") ?? "connection_failed";
   // No organizationId is available on this top-level redirect target - route
@@ -30,11 +33,10 @@ function InstagramOAuthErrorContent() {
 
   return (
     <div className="mx-auto mt-24 max-w-md text-center">
-      <h1 className="text-xl font-semibold">Couldn&apos;t connect Instagram</h1>
+      <h1 className="text-xl font-semibold">{translateText("Couldn't connect Instagram")}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{MESSAGES[reason] ?? reason}</p>
       <Link href={backHref} className="mt-6 inline-block underline">
-        Back to integrations
-      </Link>
+         {translateText("Back to integrations")} </Link>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +11,7 @@ import { AccountShell } from "../account-shell";
 import styles from "../account.module.css";
 
 export default function SignupPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,28 +35,25 @@ export default function SignupPage() {
 
   return (
     <AccountShell
-      title="Create your account"
-      subtitle="Set up your AI sales and social media employee in minutes."
+      title={translateText("Create your account")}
+      subtitle={translateText("Set up your AI sales and social media employee in minutes.")}
       footer={
         <>
-          Already have an account? <Link href="/login">Log in</Link>
+           {translateText("Already have an account?")} <Link href="/login">{translateText("Log in")}</Link>
         </>
       }
     >
       <form onSubmit={onSubmit} className={styles.form}>
         <label className={styles.field}>
-          Name
-          <input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} required />
+           {translateText("Name")} <input placeholder={translateText("Your name")} value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label className={styles.field}>
-          Email
-          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+           {translateText("Email")} <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className={styles.field}>
-          Password
-          <input
+           {translateText("Password")} <input
             type="password"
-            placeholder="Min. 10 characters"
+            placeholder={translateText("Min. 10 characters")}
             minLength={10}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -63,11 +63,11 @@ export default function SignupPage() {
         {error && (
           <p className={styles.error}>
             <WarningCircle weight="bold" style={{ flexShrink: 0, marginTop: 2 }} />
-            {error}
+            {translateText(error)}
           </p>
         )}
         <button className={styles.submit} type="submit" disabled={loading}>
-          {loading ? "Creating account…" : "Create account"}
+          {loading ? translateText("Creating account…") : translateText("Create account")}
         </button>
       </form>
     </AccountShell>

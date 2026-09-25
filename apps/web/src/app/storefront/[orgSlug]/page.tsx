@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import type { Storefront } from "@yoyo/contracts";
 import { apiRequest, ApiRequestError } from "@/lib/api-client";
@@ -14,14 +15,15 @@ async function loadStorefront(orgSlug: string): Promise<Storefront> {
 }
 
 export async function generateMetadata({ params }: { params: { orgSlug: string } }): Promise<Metadata> {
+  const { t } = getI18n();
   try {
     const storefront = await apiRequest<Storefront>(`/storefront/${params.orgSlug}`, { cache: "no-store" });
     return {
-      title: `${storefront.organization.name} — Listings`,
-      description: storefront.organization.description ?? `Browse available properties from ${storefront.organization.name}.`
+      title: `${storefront.organization.name} — ${t("Listings")}`,
+      description: storefront.organization.description ?? t("Browse available properties and book a viewing.")
     };
   } catch {
-    return { title: "Listings" };
+    return { title: t("Listings") };
   }
 }
 

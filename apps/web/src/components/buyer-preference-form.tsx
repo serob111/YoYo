@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import type { BuyerPreferenceDto, TransactionType, UpsertBuyerPreferenceInput } from "@yoyo/contracts";
 import { Input } from "@/components/ui/input";
@@ -94,6 +96,7 @@ export function BuyerPreferenceForm({
   onSubmit: (input: UpsertBuyerPreferenceInput) => void;
   isPending: boolean;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const [values, setValues] = useState<BuyerPreferenceFormValues>(() => toFormValues(preference));
   const isRent = transactionType === "RENT";
 
@@ -111,65 +114,57 @@ export function BuyerPreferenceForm({
       <div className="grid gap-3">
         <div className="grid grid-cols-3 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Min {isRent ? "rent" : "price"}
+             {translateText("Min")} {isRent ? "rent" : "price"}
             <Input type="number" min="0" value={values.minPrice} onChange={(e) => set("minPrice", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Max {isRent ? "rent" : "price"}
+             {translateText("Max")} {isRent ? "rent" : "price"}
             <Input type="number" min="0" value={values.maxPrice} onChange={(e) => set("maxPrice", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Currency
-            <Input maxLength={3} value={values.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
+             {translateText("Currency")} <Input maxLength={3} value={values.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
           </label>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Property type
-            <Select value={values.propertyType} onValueChange={(v) => v && set("propertyType", v as BuyerPreferenceFormValues["propertyType"])}>
+             {translateText("Property type")} <Select value={values.propertyType} onValueChange={(v) => v && set("propertyType", v as BuyerPreferenceFormValues["propertyType"])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROPERTY_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {type === "ANY" ? "Any" : type}
+                    {type === "ANY" ? translateText("Any") : type}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Min. area (m&sup2;)
-            <Input type="number" min="0" value={values.minAreaSqm} onChange={(e) => set("minAreaSqm", e.target.value)} />
+             {translateText("Min. area (m²)")} <Input type="number" min="0" value={values.minAreaSqm} onChange={(e) => set("minAreaSqm", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Bedrooms
-            <Input type="number" min="0" value={values.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} />
+             {translateText("Bedrooms")} <Input type="number" min="0" value={values.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} />
           </label>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Country
-            <Input placeholder="e.g. UAE" value={values.country} onChange={(e) => set("country", e.target.value)} />
+             {translateText("Country")} <Input placeholder={translateText("e.g. UAE")} value={values.country} onChange={(e) => set("country", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            City
-            <Input value={values.city} onChange={(e) => set("city", e.target.value)} />
+             {translateText("City")} <Input value={values.city} onChange={(e) => set("city", e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Districts
-            <Input placeholder="Comma-separated" value={values.districts} onChange={(e) => set("districts", e.target.value)} />
+             {translateText("Districts")} <Input placeholder={translateText("Comma-separated")} value={values.districts} onChange={(e) => set("districts", e.target.value)} />
           </label>
         </div>
 
         {isRent ? (
           <div className="grid grid-cols-4 gap-3">
             <label className="grid gap-1 text-sm font-medium">
-              Furnished
-              <Select
+               {translateText("Furnished")} <Select
                 value={values.furnished == null ? "ANY" : values.furnished ? "YES" : "NO"}
                 onValueChange={(v) => set("furnished", v === "ANY" ? null : v === "YES")}
               >
@@ -177,23 +172,20 @@ export function BuyerPreferenceForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ANY">Any</SelectItem>
-                  <SelectItem value="YES">Yes</SelectItem>
-                  <SelectItem value="NO">No</SelectItem>
+                  <SelectItem value="ANY">{translateText("Any")}</SelectItem>
+                  <SelectItem value="YES">{translateText("Yes")}</SelectItem>
+                  <SelectItem value="NO">{translateText("No")}</SelectItem>
                 </SelectContent>
               </Select>
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Move-in date
-              <Input type="date" value={values.moveInDate} onChange={(e) => set("moveInDate", e.target.value)} />
+               {translateText("Move-in date")} <Input type="date" value={values.moveInDate} onChange={(e) => set("moveInDate", e.target.value)} />
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Lease (months)
-              <Input type="number" min="0" value={values.leaseDurationMonths} onChange={(e) => set("leaseDurationMonths", e.target.value)} />
+               {translateText("Lease (months)")} <Input type="number" min="0" value={values.leaseDurationMonths} onChange={(e) => set("leaseDurationMonths", e.target.value)} />
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Has pets
-              <Select
+               {translateText("Has pets")} <Select
                 value={values.hasPets == null ? "ANY" : values.hasPets ? "YES" : "NO"}
                 onValueChange={(v) => set("hasPets", v === "ANY" ? null : v === "YES")}
               >
@@ -201,9 +193,9 @@ export function BuyerPreferenceForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ANY">Any</SelectItem>
-                  <SelectItem value="YES">Yes</SelectItem>
-                  <SelectItem value="NO">No</SelectItem>
+                  <SelectItem value="ANY">{translateText("Any")}</SelectItem>
+                  <SelectItem value="YES">{translateText("Yes")}</SelectItem>
+                  <SelectItem value="NO">{translateText("No")}</SelectItem>
                 </SelectContent>
               </Select>
             </label>
@@ -211,23 +203,21 @@ export function BuyerPreferenceForm({
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1 text-sm font-medium">
-              Financing
-              <Select value={values.financingType} onValueChange={(v) => v && set("financingType", v as BuyerPreferenceFormValues["financingType"])}>
+               {translateText("Financing")} <Select value={values.financingType} onValueChange={(v) => v && set("financingType", v as BuyerPreferenceFormValues["financingType"])}>
                 <SelectTrigger size="sm" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {FINANCING_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type === "ANY" ? "Any" : type}
+                      {translateText(type)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Purchase timeframe
-              <Select
+               {translateText("Purchase timeframe")} <Select
                 value={values.purchaseTimeframe}
                 onValueChange={(v) => v && set("purchaseTimeframe", v as BuyerPreferenceFormValues["purchaseTimeframe"])}
               >
@@ -237,7 +227,7 @@ export function BuyerPreferenceForm({
                 <SelectContent>
                   {PURCHASE_TIMEFRAMES.map((timeframe) => (
                     <SelectItem key={timeframe} value={timeframe}>
-                      {timeframe === "ANY" ? "Any" : timeframe.replaceAll("_", " ")}
+                      {translateText(timeframe)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -247,14 +237,12 @@ export function BuyerPreferenceForm({
         )}
 
         <label className="grid gap-1 text-sm font-medium">
-          Notes
-          <Textarea value={values.notes} onChange={(e) => set("notes", e.target.value)} />
+           {translateText("Notes")} <Textarea value={values.notes} onChange={(e) => set("notes", e.target.value)} />
         </label>
       </div>
       <DialogFooter>
         <Button type="submit" disabled={isPending}>
-          Save
-        </Button>
+           {translateText("Save")} </Button>
       </DialogFooter>
     </form>
   );

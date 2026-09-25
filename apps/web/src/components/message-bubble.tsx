@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import { RelativeTime } from "./relative-time";
 import type { Message } from "@yoyo/contracts";
@@ -19,6 +22,7 @@ const BUBBLE_STYLES: Record<Message["senderType"], string> = {
 };
 
 export function MessageBubble({ message }: { message: Message }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   if (message.senderType === "SYSTEM") {
     return <div className="my-1 text-center text-xs italic text-muted-foreground">{message.text}</div>;
   }
@@ -30,10 +34,10 @@ export function MessageBubble({ message }: { message: Message }) {
         {message.text}
       </div>
       <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-        <span>{SENDER_LABEL[message.senderType]}</span>
+        <span>{translateText(SENDER_LABEL[message.senderType])}</span>
         <span>·</span>
         <RelativeTime date={message.createdAt} />
-        {isOutbound && <span className="lowercase">· {message.status}</span>}
+        {isOutbound && <span className="lowercase">· {translateText(message.status)}</span>}
       </div>
     </div>
   );

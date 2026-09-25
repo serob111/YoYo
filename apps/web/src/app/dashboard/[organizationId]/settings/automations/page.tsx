@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { Fragment, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import type { AutomationDto, CreateAutomationInput } from "@yoyo/contracts";
@@ -57,6 +59,7 @@ function AutomationForm({
   onSubmit: (input: CreateAutomationInput) => void;
   isPending: boolean;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { data: pipeline } = usePipeline(organizationId);
   const { data: tags } = useTags(organizationId);
 
@@ -107,21 +110,19 @@ function AutomationForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-3">
         <label className="grid gap-1 text-sm font-medium">
-          Name
-          <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Follow up new leads" />
+           {translateText("Name")} <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder={translateText("e.g. Follow up new leads")} />
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1 text-sm font-medium">
-            Trigger
-            <Select value={triggerType} onValueChange={(v) => v && setTriggerType(v as (typeof TRIGGER_TYPES)[number])}>
+             {translateText("Trigger")} <Select value={triggerType} onValueChange={(v) => v && setTriggerType(v as (typeof TRIGGER_TYPES)[number])}>
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {TRIGGER_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {TRIGGER_LABELS[t]}
+                    {translateText(TRIGGER_LABELS[t])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -129,8 +130,7 @@ function AutomationForm({
           </label>
           {triggerType === "LEAD_STAGE_CHANGED" && pipeline && (
             <label className="grid gap-1 text-sm font-medium">
-              To stage
-              <Select
+               {translateText("To stage")} <Select
                 items={{ any: "Any stage", ...Object.fromEntries(pipeline.stages.map((s) => [s.id, s.name])) }}
                 value={toStageId || "any"}
                 onValueChange={(v) => setToStageId(!v || v === "any" ? "" : v)}
@@ -139,7 +139,7 @@ function AutomationForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any stage</SelectItem>
+                  <SelectItem value="any">{translateText("Any stage")}</SelectItem>
                   {pipeline.stages.map((stage) => (
                     <SelectItem key={stage.id} value={stage.id}>
                       {stage.name}
@@ -152,15 +152,14 @@ function AutomationForm({
         </div>
 
         <label className="grid gap-1 text-sm font-medium">
-          Action
-          <Select value={actionType} onValueChange={(v) => v && setActionType(v as (typeof ACTION_TYPES)[number])}>
+           {translateText("Action")} <Select value={actionType} onValueChange={(v) => v && setActionType(v as (typeof ACTION_TYPES)[number])}>
             <SelectTrigger size="sm" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ACTION_TYPES.map((a) => (
                 <SelectItem key={a} value={a}>
-                  {ACTION_LABELS[a]}
+                  {translateText(ACTION_LABELS[a])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -171,24 +170,22 @@ function AutomationForm({
           <div className="grid gap-3 rounded-lg border border-border p-3">
             <div className="grid grid-cols-2 gap-3">
               <label className="grid gap-1 text-sm font-medium">
-                Delay (minutes)
-                <Input type="number" min="1" value={delayMinutes} onChange={(e) => setDelayMinutes(e.target.value)} />
+                 {translateText("Delay (minutes)")} <Input type="number" min="1" value={delayMinutes} onChange={(e) => setDelayMinutes(e.target.value)} />
               </label>
               <label className="grid gap-1 text-sm font-medium">
-                Then
-                <Select value={followUpActionType} onValueChange={(v) => v && setFollowUpActionType(v as "SEND_MESSAGE" | "CREATE_TASK")}>
+                 {translateText("Then")} <Select value={followUpActionType} onValueChange={(v) => v && setFollowUpActionType(v as "SEND_MESSAGE" | "CREATE_TASK")}>
                   <SelectTrigger size="sm" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SEND_MESSAGE">Send message</SelectItem>
-                    <SelectItem value="CREATE_TASK">Create task</SelectItem>
+                    <SelectItem value="SEND_MESSAGE">{translateText("Send message")}</SelectItem>
+                    <SelectItem value="CREATE_TASK">{translateText("Create task")}</SelectItem>
                   </SelectContent>
                 </Select>
               </label>
             </div>
             <label className="grid gap-1 text-sm font-medium">
-              {followUpActionType === "SEND_MESSAGE" ? "Message" : "Task title"}
+              {followUpActionType === "SEND_MESSAGE" ? translateText("Message") : translateText("Task title")}
               <Input required value={followUpText} onChange={(e) => setFollowUpText(e.target.value)} />
             </label>
           </div>
@@ -197,12 +194,10 @@ function AutomationForm({
         {actionType === "CREATE_TASK" && (
           <div className="grid gap-3 rounded-lg border border-border p-3">
             <label className="grid gap-1 text-sm font-medium">
-              Task title
-              <Input required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
+               {translateText("Task title")} <Input required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Due in (minutes, optional)
-              <Input type="number" min="1" value={dueInMinutes} onChange={(e) => setDueInMinutes(e.target.value)} />
+               {translateText("Due in (minutes, optional)")} <Input type="number" min="1" value={dueInMinutes} onChange={(e) => setDueInMinutes(e.target.value)} />
             </label>
           </div>
         )}
@@ -210,10 +205,9 @@ function AutomationForm({
         {actionType === "ADD_TAG" && (
           <div className="rounded-lg border border-border p-3">
             <label className="grid gap-1 text-sm font-medium">
-              Tag
-              <Select value={tagId} onValueChange={(v) => v && setTagId(v)}>
+               {translateText("Tag")} <Select value={tagId} onValueChange={(v) => v && setTagId(v)}>
                 <SelectTrigger size="sm" className="w-full">
-                  <SelectValue placeholder="Choose a tag" />
+                  <SelectValue placeholder={translateText("Choose a tag")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(tags ?? []).map((tag) => (
@@ -224,31 +218,31 @@ function AutomationForm({
                 </SelectContent>
               </Select>
             </label>
-            {(tags ?? []).length === 0 && <p className="mt-1 text-xs text-muted-foreground">No tags exist yet - create one from a lead first.</p>}
+            {(tags ?? []).length === 0 && <p className="mt-1 text-xs text-muted-foreground">{translateText("No tags exist yet - create one from a lead first.")}</p>}
           </div>
         )}
       </div>
       <DialogFooter>
         <Button type="submit" disabled={isPending}>
-          Create
-        </Button>
+           {translateText("Create")} </Button>
       </DialogFooter>
     </form>
   );
 }
 
 function ExecutionsList({ organizationId, automationId }: { organizationId: string; automationId: string }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { data: executions, isLoading } = useAutomationExecutions(organizationId, automationId, true);
   if (isLoading) return <Skeleton className="h-8 w-full" />;
-  if (!executions || executions.length === 0) return <p className="text-xs text-muted-foreground">No runs yet.</p>;
+  if (!executions || executions.length === 0) return <p className="text-xs text-muted-foreground">{translateText("No runs yet.")}</p>;
   return (
     <div className="flex flex-col gap-1">
       {executions.slice(0, 5).map((execution) => (
         <div key={execution.id} className="flex items-center gap-2 text-xs">
           <Badge variant={execution.status === "COMPLETED" ? "default" : execution.status === "FAILED" ? "destructive" : "outline"}>
-            {execution.status}
+            {translateText(execution.status)}
           </Badge>
-          <span className="text-muted-foreground">{new Date(execution.createdAt).toLocaleString()}</span>
+          <span className="text-muted-foreground">{new Date(execution.createdAt).toLocaleString(intlLocale)}</span>
           {execution.errorMessage && <span className="truncate text-destructive">{execution.errorMessage}</span>}
         </div>
       ))}
@@ -257,6 +251,7 @@ function ExecutionsList({ organizationId, automationId }: { organizationId: stri
 }
 
 export default function AutomationsSettingsPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -282,8 +277,8 @@ export default function AutomationsSettingsPage() {
   if (!canManage) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-xl font-semibold">Automations</h1>
-        <p className="mt-2 text-sm text-muted-foreground">You do not have access to manage automations for this organization.</p>
+        <h1 className="text-xl font-semibold">{translateText("Automations")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{translateText("You do not have access to manage automations for this organization.")}</p>
       </div>
     );
   }
@@ -292,14 +287,14 @@ export default function AutomationsSettingsPage() {
     <div className="max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Automations</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Rules that react to lead events - the AI&apos;s own scheduled follow-ups run independently of these.</p>
+          <h1 className="text-xl font-semibold">{translateText("Automations")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{translateText("Rules that react to lead events - the AI's own scheduled follow-ups run independently of these.")}</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>New automation</DialogTrigger>
+          <DialogTrigger render={<Button />}>{translateText("New automation")}</DialogTrigger>
           <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>New automation</DialogTitle>
+              <DialogTitle>{translateText("New automation")}</DialogTitle>
             </DialogHeader>
             <AutomationForm organizationId={organizationId} onSubmit={handleCreate} isPending={createAutomation.isPending} />
           </DialogContent>
@@ -313,16 +308,16 @@ export default function AutomationsSettingsPage() {
             <Skeleton className="h-10 w-full" />
           </div>
         )}
-        {!isLoading && (automations ?? []).length === 0 && <p className="text-sm text-muted-foreground">No automations yet.</p>}
+        {!isLoading && (automations ?? []).length === 0 && <p className="text-sm text-muted-foreground">{translateText("No automations yet.")}</p>}
 
         {automations && automations.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Trigger</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Enabled</TableHead>
+                <TableHead>{translateText("Name")}</TableHead>
+                <TableHead>{translateText("Trigger")}</TableHead>
+                <TableHead>{translateText("Action")}</TableHead>
+                <TableHead>{translateText("Enabled")}</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -340,13 +335,12 @@ export default function AutomationsSettingsPage() {
                         disabled={updateAutomation.isPending}
                         onClick={() => updateAutomation.mutate({ automationId: automation.id, input: { enabled: !automation.enabled } })}
                       >
-                        {automation.enabled ? "On" : "Off"}
+                        {automation.enabled ? translateText("On") : translateText("Off")}
                       </Button>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" disabled={deleteAutomation.isPending} onClick={() => deleteAutomation.mutate(automation.id)}>
-                        Delete
-                      </Button>
+                         {translateText("Delete")} </Button>
                     </TableCell>
                   </TableRow>
                   {expandedId === automation.id && (

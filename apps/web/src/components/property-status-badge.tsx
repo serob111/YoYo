@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n/provider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { PropertyStatus } from "@yoyo/contracts";
@@ -21,5 +24,6 @@ const LABELS: Record<PropertyStatus, string> = {
 };
 
 export function PropertyStatusBadge({ status }: { status: PropertyStatus }) {
-  return <Badge className={cn(STYLES[status])}>{LABELS[status]}</Badge>;
+  const { t: translateText, locale, intlLocale } = useI18n();
+  return <Badge className={cn(STYLES[status])}>{translateText(LABELS[status])}</Badge>;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useMemo, useState } from "react";
 import { ArrowRight, Bathtub, Bed, MapPin, Ruler } from "@phosphor-icons/react";
 import type { PropertyType, Storefront, StorefrontProperty, TransactionType } from "@yoyo/contracts";
@@ -24,6 +26,7 @@ export function StorefrontClient({
   organization: Storefront["organization"];
   initialProperties: StorefrontProperty[];
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const [transactionFilter, setTransactionFilter] = useState<"ALL" | TransactionType>("ALL");
   const [typeFilter, setTypeFilter] = useState<"ALL" | PropertyType>("ALL");
   const [active, setActive] = useState<StorefrontProperty | null>(null);
@@ -46,28 +49,27 @@ export function StorefrontClient({
           <span className={styles.agencyName}>{organization.name}</span>
           <span className={styles.agencyBadge}>
             <i />
-            Объекты обновляются в реальном времени
-          </span>
+             {translateText("Объекты обновляются в реальном времени")} </span>
         </div>
       </header>
 
       <section className={styles.hero}>
         <span className={styles.heroArch} aria-hidden />
-        <p className={styles.eyebrow}>Публичная витрина объектов</p>
+        <p className={styles.eyebrow}>{translateText("Публичная витрина объектов")}</p>
         <h1 className={styles.heroTitle}>{organization.name}</h1>
         {organization.description && <p className={styles.heroDescription}>{organization.description}</p>}
         <div className={styles.heroStats}>
           <div className={styles.heroStat}>
             <strong>{initialProperties.length}</strong>
-            <span>Всего объектов</span>
+            <span>{translateText("Всего объектов")}</span>
           </div>
           <div className={styles.heroStat}>
             <strong>{saleCount}</strong>
-            <span>Продажа</span>
+            <span>{translateText("Продажа")}</span>
           </div>
           <div className={styles.heroStat}>
             <strong>{rentCount}</strong>
-            <span>Аренда</span>
+            <span>{translateText("Аренда")}</span>
           </div>
         </div>
       </section>
@@ -76,14 +78,11 @@ export function StorefrontClient({
         <div className={styles.filterRow}>
           <div className={styles.segment}>
             <button type="button" data-active={transactionFilter === "ALL"} onClick={() => setTransactionFilter("ALL")}>
-              Все
-            </button>
+               {translateText("Все")} </button>
             <button type="button" data-active={transactionFilter === "SALE"} onClick={() => setTransactionFilter("SALE")}>
-              Продажа
-            </button>
+               {translateText("Продажа")} </button>
             <button type="button" data-active={transactionFilter === "RENT"} onClick={() => setTransactionFilter("RENT")}>
-              Аренда
-            </button>
+               {translateText("Аренда")} </button>
           </div>
           {availableTypes.map((type) => (
             <button
@@ -93,11 +92,11 @@ export function StorefrontClient({
               data-active={typeFilter === type}
               onClick={() => setTypeFilter((current) => (current === type ? "ALL" : type))}
             >
-              {PROPERTY_TYPE_LABELS[type]}
+              {translateText(PROPERTY_TYPE_LABELS[type])}
             </button>
           ))}
           <span className={styles.filterSpacer}>
-            {filtered.length} из {initialProperties.length}
+            {filtered.length}  {translateText("из")} {initialProperties.length}
           </span>
         </div>
       </div>
@@ -105,9 +104,8 @@ export function StorefrontClient({
       <section className={styles.gridSection}>
         {filtered.length === 0 ? (
           <div className={styles.empty}>
-            <strong>Ничего не найдено</strong>
-            Попробуйте изменить фильтры.
-          </div>
+            <strong>{translateText("Ничего не найдено")}</strong>
+             {translateText("Попробуйте изменить фильтры.")} </div>
         ) : (
           <div className={styles.grid}>
             {filtered.map((property) => (
@@ -118,7 +116,7 @@ export function StorefrontClient({
       </section>
 
       <footer className={styles.footer}>
-        Витрина работает на <a href="/">YoYo</a>
+         {translateText("Витрина работает на")} <a href="/">YoYo</a>
       </footer>
 
       {active && <BookingModal orgSlug={orgSlug} property={active} onClose={() => setActive(null)} />}
@@ -127,6 +125,7 @@ export function StorefrontClient({
 }
 
 function PropertyCard({ property, onOpen }: { property: StorefrontProperty; onOpen: () => void }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const location = [property.district, property.city, property.country].filter(Boolean).join(", ");
   return (
     <article className={styles.card}>
@@ -134,12 +133,12 @@ function PropertyCard({ property, onOpen }: { property: StorefrontProperty; onOp
         <PropertyArt propertyType={property.propertyType}>
           <div className={styles.badgeRow}>
             <span className={styles.badge} data-tone={property.transactionType === "RENT" ? "rent" : "sale"}>
-              {property.transactionType === "RENT" ? "Аренда" : "Продажа"}
+              {property.transactionType === "RENT" ? translateText("Аренда") : translateText("Продажа")}
             </span>
           </div>
         </PropertyArt>
         <div className={styles.cardBody}>
-          <div className={styles.cardPrice}>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod)}</div>
+          <div className={styles.cardPrice}>{formatPrice(property.priceCents, property.currency, property.transactionType, property.rentBillingPeriod, locale)}</div>
           <div className={styles.cardTitle}>{property.title}</div>
           <div className={styles.cardMeta}>
             {property.bedrooms != null && (
@@ -154,8 +153,7 @@ function PropertyCard({ property, onOpen }: { property: StorefrontProperty; onOp
             )}
             {property.areaSqm != null && (
               <span>
-                <Ruler weight="bold" /> {property.areaSqm} м²
-              </span>
+                <Ruler weight="bold" /> {property.areaSqm}  {translateText("м²")} </span>
             )}
           </div>
           <div className={styles.cardFooter}>
@@ -170,7 +168,7 @@ function PropertyCard({ property, onOpen }: { property: StorefrontProperty; onOp
               )}
             </span>
             <span className={styles.cardCta}>
-              Записаться <ArrowRight weight="bold" />
+               {translateText("Записаться")} <ArrowRight weight="bold" />
             </span>
           </div>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState, type FormEvent } from "react";
 import type { Conversation, ConversationAutomationState } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
@@ -24,6 +26,7 @@ export function ConversationThread({
   conversation: Conversation;
   currentUserId: string | undefined;
 }) {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const { data: organization } = useOrganization(organizationId);
   const canReply = useCan(organization?.myRole, "replyConversation");
   const canTakeOver = useCan(organization?.myRole, "takeOverConversation");
@@ -61,8 +64,7 @@ export function ConversationThread({
           <h2 className="font-medium">{conversation.contactDisplayName}</h2>
           {account && account.status !== "CONNECTED" && (
             <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-700">
-              <StatusBadge status={account.status} /> Reconnect this account to send messages.
-            </p>
+              <StatusBadge status={account.status} />  {translateText("Reconnect this account to send messages.")} </p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -74,7 +76,7 @@ export function ConversationThread({
               <SelectContent>
                 {AUTOMATION_STATES.map((state) => (
                   <SelectItem key={state} value={state}>
-                    {state}
+                    {translateText(state)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -87,7 +89,7 @@ export function ConversationThread({
               disabled={!currentUserId || conversation.assignedUserId === currentUserId || assign.isPending}
               onClick={() => currentUserId && assign.mutate({ assignedUserId: currentUserId })}
             >
-              {conversation.assignedUserId === currentUserId ? "Claimed by you" : "Claim"}
+              {conversation.assignedUserId === currentUserId ? translateText("Claimed by you") : translateText("Claim")}
             </Button>
           )}
         </div>
@@ -96,7 +98,7 @@ export function ConversationThread({
       <div className="flex-1 overflow-y-auto p-4">
         {hasNextPage && (
           <Button variant="ghost" className="mb-3 w-full" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
-            {isFetchingNextPage ? "Loading..." : "Load older messages"}
+            {isFetchingNextPage ? translateText("Loading...") : translateText("Load older messages")}
           </Button>
         )}
         <div className="flex flex-col gap-3">
@@ -110,7 +112,7 @@ export function ConversationThread({
         <form onSubmit={onSend} className="flex gap-2 border-t border-border p-3">
           <Textarea
             className="min-h-10"
-            placeholder="Type a reply..."
+            placeholder={translateText("Type a reply...")}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -121,11 +123,10 @@ export function ConversationThread({
             }}
           />
           <Button type="submit" disabled={sendMessage.isPending || !text.trim()}>
-            Send
-          </Button>
+             {translateText("Send")} </Button>
         </form>
       )}
-      {error && <p className="px-3 pb-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="px-3 pb-2 text-sm text-red-600">{translateText(error)}</p>}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { MagnifyingGlass, UsersThree } from "@phosphor-icons/react";
@@ -16,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function ContactsPage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const params = useParams<{ organizationId: string }>();
   const organizationId = params.organizationId;
   const { data: organization } = useOrganization(organizationId);
@@ -35,13 +38,13 @@ export default function ContactsPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Contacts</h1>
+        <h1 className="text-xl font-semibold">{translateText("Contacts")}</h1>
         {canManage && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<Button />}>New contact</DialogTrigger>
+            <DialogTrigger render={<Button />}>{translateText("New contact")}</DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>New contact</DialogTitle>
+                <DialogTitle>{translateText("New contact")}</DialogTitle>
               </DialogHeader>
               <ContactForm onSubmit={handleCreate} isPending={createContact.isPending} />
             </DialogContent>
@@ -51,7 +54,7 @@ export default function ContactsPage() {
 
       <div className="relative mt-4 w-64">
         <MagnifyingGlass size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts..." className="pl-8" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={translateText("Search contacts...")} className="pl-8" />
       </div>
 
       <div className="mt-6">
@@ -63,19 +66,19 @@ export default function ContactsPage() {
           </div>
         )}
 
-        {!isLoading && contacts.length === 0 && search && <p className="text-sm text-muted-foreground">No contacts match your search.</p>}
+        {!isLoading && contacts.length === 0 && search && <p className="text-sm text-muted-foreground">{translateText("No contacts match your search.")}</p>}
         {!isLoading && contacts.length === 0 && !search && (
-          <EmptyState icon={UsersThree} title="No contacts yet" description="Contacts are created automatically from conversations, or use the “New contact” button above to add one." />
+          <EmptyState icon={UsersThree} title={translateText("No contacts yet")} description={translateText("Contacts are created automatically from conversations, or use the “New contact” button above to add one.")} />
         )}
 
         {contacts.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Added</TableHead>
+                <TableHead>{translateText("Name")}</TableHead>
+                <TableHead>{translateText("Phone")}</TableHead>
+                <TableHead>{translateText("Email")}</TableHead>
+                <TableHead>{translateText("Added")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -84,7 +87,7 @@ export default function ContactsPage() {
                   <TableCell className="font-medium">{contact.displayName}</TableCell>
                   <TableCell>{contact.phone ?? "—"}</TableCell>
                   <TableCell>{contact.email ?? "—"}</TableCell>
-                  <TableCell>{new Date(contact.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(contact.createdAt).toLocaleDateString(intlLocale)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -93,7 +96,7 @@ export default function ContactsPage() {
 
         {hasNextPage && (
           <Button variant="ghost" className="mt-2" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
-            {isFetchingNextPage ? "Loading..." : "Load more"}
+            {isFetchingNextPage ? translateText("Loading...") : translateText("Load more")}
           </Button>
         )}
       </div>

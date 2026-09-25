@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { WarningCircle } from "@phosphor-icons/react";
@@ -12,12 +14,13 @@ function StatusShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AcceptInvitePage() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   return (
     <Suspense
       fallback={
         <StatusShell>
           <div className={styles.spinner} />
-          <p className={styles.statusTitle}>Joining organization…</p>
+          <p className={styles.statusTitle}>{translateText("Joining organization…")}</p>
         </StatusShell>
       }
     >
@@ -27,6 +30,7 @@ export default function AcceptInvitePage() {
 }
 
 function AcceptInviteInner() {
+  const { t: translateText, locale, intlLocale } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +54,13 @@ function AcceptInviteInner() {
           <div className={styles.statusIconError}>
             <WarningCircle size={22} weight="bold" />
           </div>
-          <p className={styles.statusTitle}>Couldn&apos;t join</p>
-          <p className={styles.statusText}>{error}</p>
+          <p className={styles.statusTitle}>{translateText("Couldn't join")}</p>
+          <p className={styles.statusText}>{translateText(error)}</p>
         </>
       ) : (
         <>
           <div className={styles.spinner} />
-          <p className={styles.statusTitle}>Joining organization…</p>
+          <p className={styles.statusTitle}>{translateText("Joining organization…")}</p>
         </>
       )}
     </StatusShell>
