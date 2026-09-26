@@ -58,10 +58,17 @@ services:
   minio:
     # 2026-09-24/25: MinIO Inc locked down anonymous pulls on the legacy
     # quay.io/minio/minio + Docker Hub bitnami/minio repos entirely (both now
-    # 401/manifest-unknown) as part of moving distribution to their "aistor"
-    # namespace. This is the new public home - no stable pinned release tag
-    # published yet post-migration, so :latest until one exists.
-    image: quay.io/minio/aistor/minio:latest
+    # 401/manifest-unknown), pushing users toward their new commercial
+    # "aistor" server image - which starts and passes healthchecks but
+    # refuses all S3 operations without a paid license ("No valid license
+    # found, running in offline mode" - verified directly, not assumed).
+    # cgr.dev/chainguard/minio is the still-free upstream MinIO server build
+    # (AGPLv3, confirmed via `docker run ... --version`) - runs as a non-root
+    # UID by default, which can't write the bind-mounted volume, hence `user:
+    # "0"`. The aistor *client* (mc) below is unaffected by the server-side
+    # license gate - verified it can alias/create-buckets against this image.
+    image: cgr.dev/chainguard/minio:latest
+    user: "0"
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -79,7 +86,8 @@ services:
   # never auto-creates buckets (see packages/storage) - this replaces what
   # would otherwise be a manual one-time setup step.
   minio-init:
-    # Same aistor registry move as the minio service above.
+    # mc (the client) has no server-side license gate - this image is fine
+    # to use even though the minio service above moved off aistor.
     image: quay.io/minio/aistor/mc:latest
     restart: "no"
     depends_on:

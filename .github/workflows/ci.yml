@@ -46,7 +46,12 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        # Plain postgres:16-alpine has no `vector` extension, and the
+        # phase3_ai_sales migration runs `CREATE EXTENSION vector` -
+        # migrate deploy fails here every time (pre-existing, unrelated to
+        # this change - confirmed via `gh run list`, CI has never passed
+        # on this repo). Same image docker-compose.staging.yml already uses.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: yoyo
           POSTGRES_PASSWORD: yoyo
