@@ -56,10 +56,12 @@ services:
       retries: 10
 
   minio:
-    # minio/minio is no longer published to Docker Hub (MinIO Inc moved
-    # distribution to quay.io) - pinned to a real tag since quay.io doesn't
-    # publish a floating "latest" for the server image either.
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    # 2026-09-24/25: MinIO Inc locked down anonymous pulls on the legacy
+    # quay.io/minio/minio + Docker Hub bitnami/minio repos entirely (both now
+    # 401/manifest-unknown) as part of moving distribution to their "aistor"
+    # namespace. This is the new public home - no stable pinned release tag
+    # published yet post-migration, so :latest until one exists.
+    image: quay.io/minio/aistor/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -77,9 +79,8 @@ services:
   # never auto-creates buckets (see packages/storage) - this replaces what
   # would otherwise be a manual one-time setup step.
   minio-init:
-    # Same registry move as the minio service above - quay.io does still
-    # publish a floating "latest" for the mc client, unlike the server image.
-    image: quay.io/minio/mc:latest
+    # Same aistor registry move as the minio service above.
+    image: quay.io/minio/aistor/mc:latest
     restart: "no"
     depends_on:
       minio:
