@@ -117,5 +117,13 @@ jobs:
       - name: Apply migrations
         run: pnpm --filter @yoyo/database db:migrate:deploy
 
+      # apps/api's e2e specs import compiled workspace packages (@yoyo/testing,
+      # @yoyo/crypto, @yoyo/ai, @yoyo/worker-ai, @yoyo/worker-social-sync, etc.)
+      # by their package.json main/types, which point at dist/ - ts-jest can't
+      # resolve any of them without this. Missing here made every single suite
+      # fail with TS2307 "Cannot find module", unrelated to any one branch.
+      - name: Build workspace packages
+        run: pnpm turbo run build
+
       - name: Integration tests (includes tenant-isolation suite)
         run: pnpm --filter @yoyo/api test:integration
