@@ -48,7 +48,8 @@ export const propertyImportCandidateSchema = z.object({
   propertyType: propertyTypeSchema,
   title: z.string(),
   description: z.string().nullable(),
-  priceCents: z.number().int().nullable(),
+  // BigInt on the wire - see real-estate.ts's propertySchema.priceCents.
+  priceCents: z.string().nullable(),
   currency: z.string(),
   country: z.string().nullable(),
   city: z.string().nullable(),

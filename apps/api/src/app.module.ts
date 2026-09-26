@@ -1,3 +1,4 @@
+import "./common/bigint-json.polyfill";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { CommonModule } from "./common/common.module";

@@ -10,10 +10,11 @@ export const storefrontPropertySchema = z.object({
   description: z.string().nullable(),
   propertyType: propertyTypeSchema,
   transactionType: transactionTypeSchema,
-  priceCents: z.number().int().nullable(),
+  // BigInt on the wire - see real-estate.ts's propertySchema.priceCents.
+  priceCents: z.string().nullable(),
   currency: z.string(),
   rentBillingPeriod: rentBillingPeriodSchema.nullable(),
-  depositCents: z.number().int().nullable(),
+  depositCents: z.string().nullable(),
   minRentalPeriodDays: z.number().int().nullable(),
   availableFrom: z.string().datetime().nullable(),
   country: z.string().nullable(),

@@ -29,10 +29,13 @@ export const propertySchema = z.object({
   status: propertyStatusSchema,
   visibility: propertyVisibilitySchema,
   transactionType: transactionTypeSchema,
-  priceCents: z.number().int().nullable(),
+  // BigInt on the wire - see apps/api/src/main.ts's BigInt.prototype.toJSON.
+  // A real AMD-denominated property already exceeds a 32-bit int once
+  // converted to cents, so this can't stay a plain number end-to-end.
+  priceCents: z.string().nullable(),
   currency: z.string(),
   rentBillingPeriod: rentBillingPeriodSchema.nullable(),
-  depositCents: z.number().int().nullable(),
+  depositCents: z.string().nullable(),
   minRentalPeriodDays: z.number().int().nullable(),
   availableFrom: z.string().datetime().nullable(),
   country: z.string().nullable(),
@@ -88,8 +91,9 @@ export type AddLeadPropertyInput = z.infer<typeof addLeadPropertySchema>;
 export const buyerPreferenceSchema = z.object({
   contactId: z.string().uuid(),
   transactionType: transactionTypeSchema,
-  minPriceCents: z.number().int().nullable(),
-  maxPriceCents: z.number().int().nullable(),
+  // BigInt on the wire - see propertySchema.priceCents above.
+  minPriceCents: z.string().nullable(),
+  maxPriceCents: z.string().nullable(),
   currency: z.string(),
   minAreaSqm: z.number().nullable(),
   bedrooms: z.number().int().nullable(),

@@ -254,7 +254,7 @@ export class SocialImportService {
     propertyType: string;
     title: string;
     description: string | null;
-    priceCents: number | null;
+    priceCents: bigint | null;
     currency: string;
     country: string | null;
     city: string | null;

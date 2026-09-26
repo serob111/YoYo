@@ -177,7 +177,7 @@ describe("AI sales pipeline: real estate vertical (apps/worker-ai)", () => {
     const preference = await prisma.buyerPreference.findUniqueOrThrow({
       where: { contactId_transactionType: { contactId: contact.id, transactionType: "SALE" } }
     });
-    expect(preference).toMatchObject({ maxPriceCents: 18_000_000, bedrooms: 2, districts: ["Kentron"] });
+    expect(preference).toMatchObject({ maxPriceCents: 18_000_000n, bedrooms: 2, districts: ["Kentron"] });
   });
 
   it("saves country and currency via the UPDATE_BUYER_PREFERENCES action", async () => {
@@ -209,7 +209,7 @@ describe("AI sales pipeline: real estate vertical (apps/worker-ai)", () => {
     const preference = await prisma.buyerPreference.findUniqueOrThrow({
       where: { contactId_transactionType: { contactId: contact.id, transactionType: "RENT" } }
     });
-    expect(preference).toMatchObject({ country: "UAE", city: "Dubai", currency: "AED", maxPriceCents: 800_000 });
+    expect(preference).toMatchObject({ country: "UAE", city: "Dubai", currency: "AED", maxPriceCents: 800_000n });
   });
 
   it("filters searchProperties by city and country, not just district", async () => {

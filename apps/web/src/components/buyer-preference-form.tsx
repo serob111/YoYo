@@ -36,8 +36,8 @@ interface BuyerPreferenceFormValues {
 
 function toFormValues(preference?: BuyerPreferenceDto | null): BuyerPreferenceFormValues {
   return {
-    minPrice: preference?.minPriceCents != null ? String(preference.minPriceCents / 100) : "",
-    maxPrice: preference?.maxPriceCents != null ? String(preference.maxPriceCents / 100) : "",
+    minPrice: preference?.minPriceCents != null ? String(Number(preference.minPriceCents) / 100) : "",
+    maxPrice: preference?.maxPriceCents != null ? String(Number(preference.maxPriceCents) / 100) : "",
     currency: preference?.currency ?? "USD",
     minAreaSqm: preference?.minAreaSqm != null ? String(preference.minAreaSqm) : "",
     bedrooms: preference?.bedrooms != null ? String(preference.bedrooms) : "",

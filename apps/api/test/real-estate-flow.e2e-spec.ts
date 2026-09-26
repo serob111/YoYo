@@ -191,7 +191,7 @@ describe("Real estate: properties, lead linking, viewings, buyer preferences", (
       .query({ transactionType: "SALE" })
       .set("Cookie", owner.cookieHeader)
       .expect(200);
-    expect(getRes.body.maxPriceCents).toBe(20_000_000);
+    expect(getRes.body.maxPriceCents).toBe("20000000");
 
     const updateRes = await request(app.getHttpServer())
       .put(`/organizations/${organizationId}/contacts/${contact.id}/buyer-preferences`)
@@ -199,7 +199,7 @@ describe("Real estate: properties, lead linking, viewings, buyer preferences", (
       .set("x-csrf-token", owner.csrfToken)
       .send({ transactionType: "SALE", maxPriceCents: 25_000_000, bedrooms: 3, districts: ["Kentron"] })
       .expect(200);
-    expect(updateRes.body.maxPriceCents).toBe(25_000_000);
+    expect(updateRes.body.maxPriceCents).toBe("25000000");
     expect(updateRes.body.bedrooms).toBe(3);
   });
 
@@ -225,14 +225,14 @@ describe("Real estate: properties, lead linking, viewings, buyer preferences", (
       .query({ transactionType: "SALE" })
       .set("Cookie", owner.cookieHeader)
       .expect(200);
-    expect(saleRes.body.maxPriceCents).toBe(20_000_000);
+    expect(saleRes.body.maxPriceCents).toBe("20000000");
 
     const rentRes = await request(app.getHttpServer())
       .get(`/organizations/${organizationId}/contacts/${contact.id}/buyer-preferences`)
       .query({ transactionType: "RENT" })
       .set("Cookie", owner.cookieHeader)
       .expect(200);
-    expect(rentRes.body.maxPriceCents).toBe(150_000);
+    expect(rentRes.body.maxPriceCents).toBe("150000");
     expect(rentRes.body.leaseDurationMonths).toBe(12);
   });
 

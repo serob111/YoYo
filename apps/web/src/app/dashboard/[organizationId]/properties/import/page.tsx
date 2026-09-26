@@ -48,7 +48,7 @@ function CandidateCard({ organizationId, candidate }: { organizationId: string; 
   const [linking, setLinking] = useState(false);
   const [importStatus, setImportStatus] = useState<(typeof PROPERTY_STATUSES)[number]>("DRAFT");
   const [linkPropertyId, setLinkPropertyId] = useState<string>("");
-  const [fields, setFields] = useState({ title: candidate.title, priceCents: candidate.priceCents ?? 0, bedrooms: candidate.bedrooms ?? 0 });
+  const [fields, setFields] = useState({ title: candidate.title, priceCents: Number(candidate.priceCents ?? 0), bedrooms: candidate.bedrooms ?? 0 });
 
   const update = useUpdateImportCandidate(organizationId, candidate.id);
   const doImport = useImportCandidate(organizationId, candidate.id);

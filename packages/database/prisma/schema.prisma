@@ -1132,11 +1132,14 @@ model Property {
   transactionType     TransactionType    @default(SALE)
   // priceCents is the sale price when transactionType is SALE, or the rent
   // amount per rentBillingPeriod when RENT - interpretation is conditional
-  // on transactionType, not a unit stored separately per row.
-  priceCents          Int?
+  // on transactionType, not a unit stored separately per row. BigInt, not
+  // Int - a real AMD-denominated property (~55,000,000 AMD) already exceeds
+  // INT4's ~2.1B cap once multiplied by 100 for cents; a real live crash,
+  // not a hypothetical.
+  priceCents          BigInt?
   currency            String             @default("USD")
   rentBillingPeriod   RentBillingPeriod?
-  depositCents        Int?
+  depositCents        BigInt?
   minRentalPeriodDays Int?
   availableFrom       DateTime?
   country             String?
@@ -1198,8 +1201,8 @@ model BuyerPreference {
   contactId           String
   contact             Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
   transactionType     TransactionType    @default(SALE)
-  minPriceCents       Int?
-  maxPriceCents       Int?
+  minPriceCents       BigInt?
+  maxPriceCents       BigInt?
   currency            String             @default("USD")
   minAreaSqm          Float?
   bedrooms            Int?
@@ -1371,7 +1374,7 @@ model PropertyImportCandidate {
   propertyType               PropertyType
   title                      String
   description                String?                       @db.Text
-  priceCents                 Int?
+  priceCents                 BigInt?
   currency                   String                        @default("USD")
   country                    String?
   city                       String?
