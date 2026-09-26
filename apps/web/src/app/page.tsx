@@ -2,9 +2,11 @@
 
 import { useI18n } from "@/lib/i18n/provider";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { DM_Sans, Manrope } from "next/font/google";
+import { useCurrentUser, useMyOrganizations } from "@/lib/hooks";
 import {
   ArrowRight,
   CaretDown,
@@ -189,6 +191,22 @@ function Demo() {
 
 export default function HomePage() {
   const { t: translateText } = useI18n();
+  const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
+  const { data: organizations } = useMyOrganizations(!!currentUser);
+
+  // Already-logged-in visitors landing on the marketing page should go
+  // straight to their dashboard, not see "Log in"/"Start for free" again -
+  // mirrors the exact redirect login/page.tsx uses right after a fresh login.
+  useEffect(() => {
+    if (!currentUser || !organizations) return;
+    if (organizations.length > 0) {
+      router.replace(`/dashboard/${organizations[0]!.id}`);
+    } else {
+      router.replace("/onboarding/create-organization");
+    }
+  }, [currentUser, organizations, router]);
+
   return (
     <main id="top" className={`${styles.landing} ${dmSans.variable} ${manrope.variable}`}>
       <Header />

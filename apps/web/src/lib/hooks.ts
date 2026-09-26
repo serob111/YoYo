@@ -10,10 +10,11 @@ export function useCurrentUser() {
   });
 }
 
-export function useMyOrganizations() {
+export function useMyOrganizations(enabled = true) {
   return useQuery<Organization[]>({
     queryKey: ["organizations"],
-    queryFn: () => apiRequest<Organization[]>("/organizations")
+    queryFn: () => apiRequest<Organization[]>("/organizations"),
+    enabled
   });
 }
 
