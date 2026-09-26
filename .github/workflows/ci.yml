@@ -84,16 +84,18 @@ jobs:
 
       # Not a `services:` entry - GitHub Actions service containers can't
       # override the image's command (unlike docker-compose's `command:`),
-      # and quay.io/minio/aistor/minio (the current public MinIO image, since
-      # both the legacy quay.io/minio/minio and bitnami/minio free images
-      # were locked down/removed on 2026-09-24/25) requires an explicit
-      # `server /data` command - it doesn't default to server mode like
-      # bitnami's wrapper did. Plain `docker run` + health-poll instead.
+      # and MinIO server images require an explicit `server /data` command -
+      # neither bitnami's wrapper (gone) nor a bare `services:` entry works.
+      # cgr.dev/chainguard/minio is the free AGPLv3 build (same one
+      # docker-compose.staging.yml uses) - quay.io/minio/aistor/minio starts
+      # and passes healthchecks but returns AccessDenied on every real S3
+      # call without a paid license, which is why the first attempt at this
+      # fix still failed here even though "Start MinIO" itself went green.
       - name: Start MinIO
         run: |
-          docker run -d --name minio -p 9002:9000 \
+          docker run -d --name minio -p 9002:9000 --user root \
             -e MINIO_ROOT_USER=yoyo -e MINIO_ROOT_PASSWORD=yoyo12345 \
-            quay.io/minio/aistor/minio:latest server /data
+            cgr.dev/chainguard/minio:latest server /data
           for i in $(seq 1 20); do
             curl -sf http://localhost:9002/minio/health/live && break
             sleep 2
