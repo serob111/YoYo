@@ -3,6 +3,7 @@
 import { useI18n } from "@/lib/i18n/provider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PROPERTY_STATUS_LABELS } from "@/lib/property-labels";
 import type { PropertyStatus } from "@yoyo/contracts";
 
 const STYLES: Record<PropertyStatus, string> = {
@@ -14,16 +15,7 @@ const STYLES: Record<PropertyStatus, string> = {
   ARCHIVED: "bg-slate-100 text-slate-500 hover:bg-slate-100"
 };
 
-const LABELS: Record<PropertyStatus, string> = {
-  DRAFT: "Draft",
-  ACTIVE: "Active",
-  UNDER_OFFER: "Under offer",
-  SOLD: "Sold",
-  RENTED: "Rented",
-  ARCHIVED: "Archived"
-};
-
 export function PropertyStatusBadge({ status }: { status: PropertyStatus }) {
   const { t: translateText } = useI18n();
-  return <Badge className={cn(STYLES[status])}>{translateText(LABELS[status])}</Badge>;
+  return <Badge className={cn(STYLES[status])}>{translateText(PROPERTY_STATUS_LABELS[status])}</Badge>;
 }
