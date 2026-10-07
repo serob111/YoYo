@@ -41,6 +41,10 @@ export const apiEnvSchema = z.object({
   S3_FORCE_PATH_STYLE: booleanFromString,
 
   EMAIL_FROM_ADDRESS: z.string().email().default("no-reply@example.com"),
+  // Optional, same "app boots without it" pattern as META_*/TIKTOK_*/STRIPE_*
+  // below - worker-email falls back to logging emails to its own console
+  // when unset, so local dev never needs a real Resend account.
+  RESEND_API_KEY: z.string().optional(),
 
   RATE_LIMIT_AUTH_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_AUTH_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
@@ -118,7 +122,8 @@ function loadWith<T extends z.ZodTypeAny>(schema: T, source: NodeJS.ProcessEnv):
 
 export const workerEnvSchema = coreWorkerEnvSchema.extend({
   EMAIL_FROM_ADDRESS: apiEnvSchema.shape.EMAIL_FROM_ADDRESS,
-  WEB_APP_URL: apiEnvSchema.shape.WEB_APP_URL
+  WEB_APP_URL: apiEnvSchema.shape.WEB_APP_URL,
+  RESEND_API_KEY: apiEnvSchema.shape.RESEND_API_KEY
 });
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
 export function loadWorkerEnv(source: NodeJS.ProcessEnv = process.env): WorkerEnv {

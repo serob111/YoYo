@@ -30,3 +30,29 @@ export class ConsoleEmailProvider implements EmailProvider {
     );
   }
 }
+
+/** Real delivery via Resend's REST API - https://resend.com/docs/api-reference/emails/send-email */
+export class ResendEmailProvider implements EmailProvider {
+  constructor(private readonly apiKey: string) {}
+
+  async send(email: OutgoingEmail): Promise<void> {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: email.from,
+        to: [email.to],
+        subject: email.subject,
+        text: email.text
+      })
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Resend API error ${response.status}: ${body}`);
+    }
+  }
+}

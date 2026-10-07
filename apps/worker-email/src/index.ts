@@ -9,12 +9,15 @@ import { Worker, type Job } from "bullmq";
 import { loadWorkerEnv } from "@yoyo/config";
 import { createLogger } from "@yoyo/logger";
 import { createRedisConnection, EMAIL_QUEUE_NAME, type EmailJobData } from "@yoyo/queue";
-import { ConsoleEmailProvider } from "./email-provider";
+import { ConsoleEmailProvider, ResendEmailProvider } from "./email-provider";
 import { renderEmail } from "./templates";
 
 const env = loadWorkerEnv();
 const logger = createLogger("worker-email");
-const emailProvider = new ConsoleEmailProvider();
+const emailProvider = env.RESEND_API_KEY ? new ResendEmailProvider(env.RESEND_API_KEY) : new ConsoleEmailProvider();
+if (!env.RESEND_API_KEY) {
+  logger.warn("RESEND_API_KEY not set - emails will be logged to console, not actually delivered");
+}
 
 const worker = new Worker<EmailJobData>(
   EMAIL_QUEUE_NAME,
