@@ -1,7 +1,7 @@
 import request from "supertest";
 import type { INestApplication } from "@nestjs/common";
 import { TokenEncryptionService } from "@yoyo/crypto";
-import { createTestConnectedAccount, createTestContentItem } from "@yoyo/testing";
+import { createTestConnectedAccount, createTestContentItem, createTestProperty } from "@yoyo/testing";
 import { buildTestApp, getPrisma, resetTestDatabase, resetTestRedis } from "./utils/test-app";
 import { signupUser, type AuthedContext } from "./utils/auth-helpers";
 
@@ -74,6 +74,22 @@ describe("Tenant isolation: content & media", () => {
       .set("Cookie", ownerA.cookieHeader)
       .set("x-csrf-token", ownerA.csrfToken)
       .send({})
+      .expect(404);
+  });
+
+  it("blocks creating a content item linked to another organization's property", async () => {
+    const prisma = getPrisma(app);
+    const accountA = await createTestConnectedAccount(prisma, {
+      organizationId: organizationAId,
+      encryptedAccessToken: tokenEncryption.encrypt("fake-token")
+    });
+    const propertyB = await createTestProperty(prisma, { organizationId: organizationBId });
+
+    await request(app.getHttpServer())
+      .post(`/organizations/${organizationAId}/content`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
+      .send({ connectedAccountId: accountA.id, postType: "IMAGE", propertyId: propertyB.id })
       .expect(404);
   });
 

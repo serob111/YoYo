@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { ProviderCapabilities } from "@yoyo/integrations";
 import type {
+  AddContentMediaAssetFromPropertyMediaInput,
   AddContentMediaAssetInput,
   CreateContentItemInput,
   EnhanceImageInput,
@@ -30,12 +31,13 @@ export class ContentService {
     private readonly media: MediaService
   ) {}
 
-  async list(organizationId: string, filters: { status?: string; connectedAccountId?: string }) {
+  async list(organizationId: string, filters: { status?: string; connectedAccountId?: string; propertyId?: string }) {
     return this.prisma.client.contentItem.findMany({
       where: {
         organizationId,
         ...(filters.status ? { status: filters.status as never } : {}),
-        ...(filters.connectedAccountId ? { connectedAccountId: filters.connectedAccountId } : {})
+        ...(filters.connectedAccountId ? { connectedAccountId: filters.connectedAccountId } : {}),
+        ...(filters.propertyId ? { propertyId: filters.propertyId } : {})
       },
       include: { media: { orderBy: { order: "asc" } } },
       orderBy: { createdAt: "desc" }
@@ -61,10 +63,16 @@ export class ContentService {
     const account = await this.prisma.client.connectedAccount.findUnique({ where: { id: input.connectedAccountId } });
     if (!account || account.organizationId !== organizationId) throw new NotFoundDomainError("Connected account");
 
+    if (input.propertyId) {
+      const property = await this.prisma.client.property.findUnique({ where: { id: input.propertyId } });
+      if (!property || property.organizationId !== organizationId) throw new NotFoundDomainError("Property");
+    }
+
     return this.prisma.client.contentItem.create({
       data: {
         organizationId,
         connectedAccountId: account.id,
+        propertyId: input.propertyId ?? null,
         provider: account.provider,
         postType: input.postType,
         caption: input.caption ?? null,
@@ -113,6 +121,40 @@ export class ContentService {
         storageKey: input.storageKey,
         mimeType: input.mimeType,
         byteSize: input.byteSize ?? null,
+        status: "UPLOADED",
+        originalStorageKey: null,
+        enhancementPrompt: null,
+        enhancementError: null
+      }
+    });
+  }
+
+  async addMediaAssetFromPropertyMedia(organizationId: string, contentItemId: string, input: AddContentMediaAssetFromPropertyMediaInput) {
+    const item = await this.getOrThrow(organizationId, contentItemId);
+    this.assertEditable(item.status);
+
+    const propertyMedia = await this.prisma.client.propertyMedia.findUnique({ where: { id: input.propertyMediaId } });
+    if (!propertyMedia || propertyMedia.organizationId !== organizationId) throw new NotFoundDomainError("Property media");
+    if (propertyMedia.kind !== "IMAGE" && propertyMedia.kind !== "VIDEO") {
+      throw new ConflictDomainError("Only photo or video property media can be published.");
+    }
+
+    const copied = await this.media.copyPropertyMediaToContent(organizationId, propertyMedia);
+
+    return this.prisma.client.contentMediaAsset.upsert({
+      where: { contentItemId_order: { contentItemId, order: input.order } },
+      create: {
+        organizationId,
+        contentItemId,
+        order: input.order,
+        kind: propertyMedia.kind,
+        storageKey: copied.key,
+        mimeType: copied.mimeType
+      },
+      update: {
+        kind: propertyMedia.kind,
+        storageKey: copied.key,
+        mimeType: copied.mimeType,
         status: "UPLOADED",
         originalStorageKey: null,
         enhancementPrompt: null,

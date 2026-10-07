@@ -1,8 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   addLeadPropertySchema,
+  createPropertyMediaSchema,
+  propertyMediaPresignedUploadRequestSchema,
+  reorderPropertyMediaSchema,
   upsertPropertySchema,
   type AddLeadPropertyInput,
+  type CreatePropertyMediaInput,
+  type PropertyMediaPresignedUploadRequestInput,
+  type ReorderPropertyMediaInput,
   type UpsertPropertyInput
 } from "@yoyo/contracts";
 import type { PropertyStatus, PropertyType } from "@yoyo/database";
@@ -94,6 +100,64 @@ export class PropertiesController {
     @Param("leadId") leadId: string
   ) {
     await this.properties.unlinkLead(organizationId, propertyId, leadId);
+    return { success: true };
+  }
+
+  @Post(":propertyId/media/presigned-upload")
+  @RequireCapability("manageCRM")
+  @UseGuards(CsrfGuard)
+  async mediaPresignedUpload(
+    @Param("organizationId") organizationId: string,
+    @Param("propertyId") propertyId: string,
+    @Body(new ZodValidationPipe(propertyMediaPresignedUploadRequestSchema)) body: PropertyMediaPresignedUploadRequestInput
+  ) {
+    return this.properties.getMediaPresignedUploadUrl(organizationId, propertyId, body.contentType, body.kind);
+  }
+
+  @Post(":propertyId/media")
+  @RequireCapability("manageCRM")
+  @UseGuards(CsrfGuard)
+  async createMedia(
+    @Param("organizationId") organizationId: string,
+    @Param("propertyId") propertyId: string,
+    @Body(new ZodValidationPipe(createPropertyMediaSchema)) body: CreatePropertyMediaInput
+  ) {
+    return this.properties.createMedia(organizationId, propertyId, body);
+  }
+
+  @Patch(":propertyId/media/reorder")
+  @RequireCapability("manageCRM")
+  @UseGuards(CsrfGuard)
+  async reorderMedia(
+    @Param("organizationId") organizationId: string,
+    @Param("propertyId") propertyId: string,
+    @Body(new ZodValidationPipe(reorderPropertyMediaSchema)) body: ReorderPropertyMediaInput
+  ) {
+    await this.properties.reorderMedia(organizationId, propertyId, body.mediaIds);
+    return { success: true };
+  }
+
+  @Post(":propertyId/media/:mediaId/set-cover")
+  @RequireCapability("manageCRM")
+  @UseGuards(CsrfGuard)
+  async setCoverMedia(
+    @Param("organizationId") organizationId: string,
+    @Param("propertyId") propertyId: string,
+    @Param("mediaId") mediaId: string
+  ) {
+    await this.properties.setCoverMedia(organizationId, propertyId, mediaId);
+    return { success: true };
+  }
+
+  @Delete(":propertyId/media/:mediaId")
+  @RequireCapability("manageCRM")
+  @UseGuards(CsrfGuard)
+  async removeMedia(
+    @Param("organizationId") organizationId: string,
+    @Param("propertyId") propertyId: string,
+    @Param("mediaId") mediaId: string
+  ) {
+    await this.properties.removeMedia(organizationId, propertyId, mediaId);
     return { success: true };
   }
 }

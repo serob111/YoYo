@@ -34,6 +34,7 @@ export type ContentMediaAssetDto = z.infer<typeof contentMediaAssetSchema>;
 export const contentItemSchema = z.object({
   id: z.string().uuid(),
   connectedAccountId: z.string().uuid(),
+  propertyId: z.string().uuid().nullable(),
   provider: z.enum(["INSTAGRAM", "TIKTOK"]),
   postType: contentPostTypeSchema,
   caption: z.string().nullable(),
@@ -62,7 +63,10 @@ export const createContentItemSchema = z.object({
   // Media assets are attached after creation via MediaModule's presigned
   // upload + POST .../content/:id/media - not inline here, since the file
   // bytes themselves never pass through this JSON payload.
-  scheduledFor: z.string().datetime().optional()
+  scheduledFor: z.string().datetime().optional(),
+  // Set when this post was authored from a Property's "Publish" flow - see
+  // addContentMediaAssetFromPropertyMediaSchema for how its media is attached.
+  propertyId: z.string().uuid().optional()
 });
 export type CreateContentItemInput = z.infer<typeof createContentItemSchema>;
 
@@ -100,6 +104,16 @@ export const addContentMediaAssetSchema = z.object({
   byteSize: z.number().int().positive().optional()
 });
 export type AddContentMediaAssetInput = z.infer<typeof addContentMediaAssetSchema>;
+
+// Copies a property's existing media into this ContentItem (server-side S3
+// copy, see MediaService.copyPropertyMediaToContent) rather than requiring a
+// fresh upload - the two lifecycles are then fully decoupled, so deleting or
+// replacing the source PropertyMedia later can never affect this post.
+export const addContentMediaAssetFromPropertyMediaSchema = z.object({
+  propertyMediaId: z.string().uuid(),
+  order: z.number().int().min(0).max(9)
+});
+export type AddContentMediaAssetFromPropertyMediaInput = z.infer<typeof addContentMediaAssetFromPropertyMediaSchema>;
 
 export const reorderContentMediaSchema = z.object({
   // Full ordered list of existing media asset ids - re-sequences 0..N-1.

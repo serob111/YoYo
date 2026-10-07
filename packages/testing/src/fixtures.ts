@@ -19,6 +19,9 @@ import type {
   Property,
   PropertyImportCandidate,
   PropertyImportCandidateStatus,
+  PropertyMedia,
+  PropertyMediaKind,
+  PropertyMediaSource,
   PropertyType,
   Provider,
   SocialMediaAnalysisStatus,
@@ -245,6 +248,36 @@ export async function createTestProperty(
       organizationId: params.organizationId,
       title: params.title ?? "Test Property",
       propertyType: params.propertyType ?? "APARTMENT"
+    }
+  });
+}
+
+export async function createTestPropertyMedia(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    propertyId: string;
+    kind?: PropertyMediaKind;
+    storageKey?: string | null;
+    externalUrl?: string | null;
+    mimeType?: string | null;
+    source?: PropertyMediaSource;
+    position?: number;
+    isCover?: boolean;
+  }
+): Promise<PropertyMedia> {
+  const useExternalUrl = params.externalUrl !== undefined && params.storageKey === undefined;
+  return prisma.propertyMedia.create({
+    data: {
+      organizationId: params.organizationId,
+      propertyId: params.propertyId,
+      kind: params.kind ?? "IMAGE",
+      storageKey: useExternalUrl ? null : (params.storageKey ?? `orgs/${params.organizationId}/properties/${params.propertyId}/${randomUUID()}.jpg`),
+      externalUrl: useExternalUrl ? params.externalUrl : null,
+      mimeType: params.mimeType ?? (useExternalUrl ? null : "image/jpeg"),
+      source: params.source ?? "MANUAL",
+      position: params.position ?? 0,
+      isCover: params.isCover ?? false
     }
   });
 }

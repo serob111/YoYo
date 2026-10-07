@@ -1,7 +1,7 @@
 import request from "supertest";
 import type { INestApplication } from "@nestjs/common";
 import { getOrCreateDefaultPipeline } from "@yoyo/database";
-import { createTestContact, createTestLead, createTestProperty } from "@yoyo/testing";
+import { createTestContact, createTestLead, createTestProperty, createTestPropertyMedia } from "@yoyo/testing";
 import { buildTestApp, getPrisma, resetTestDatabase, resetTestRedis } from "./utils/test-app";
 import { signupUser, type AuthedContext } from "./utils/auth-helpers";
 
@@ -134,6 +134,59 @@ describe("Tenant isolation: real estate resources", () => {
       .set("Cookie", ownerA.cookieHeader)
       .set("x-csrf-token", ownerA.csrfToken)
       .send({ propertyId: propertyBId, leadId: leadA.id, scheduledFor: new Date().toISOString() })
+      .expect(404);
+  });
+
+  it("blocks a presigned property-media upload request against another organization's property", async () => {
+    await request(app.getHttpServer())
+      .post(`/organizations/${organizationAId}/properties/${propertyBId}/media/presigned-upload`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
+      .send({ contentType: "image/jpeg", kind: "IMAGE" })
+      .expect(404);
+  });
+
+  it("blocks creating media on another organization's property", async () => {
+    await request(app.getHttpServer())
+      .post(`/organizations/${organizationAId}/properties/${propertyBId}/media`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
+      .send({ kind: "IMAGE", storageKey: `orgs/${organizationBId}/properties/${propertyBId}/hijack.jpg` })
+      .expect(404);
+  });
+
+  it("blocks reordering another organization's property media", async () => {
+    const prisma = getPrisma(app);
+    const mediaB = await createTestPropertyMedia(prisma, { organizationId: organizationBId, propertyId: propertyBId });
+
+    await request(app.getHttpServer())
+      .patch(`/organizations/${organizationAId}/properties/${propertyBId}/media/reorder`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
+      .send({ mediaIds: [mediaB.id] })
+      .expect(404);
+  });
+
+  it("blocks setting cover media on another organization's property", async () => {
+    const prisma = getPrisma(app);
+    const mediaB = await createTestPropertyMedia(prisma, { organizationId: organizationBId, propertyId: propertyBId });
+
+    await request(app.getHttpServer())
+      .post(`/organizations/${organizationAId}/properties/${propertyBId}/media/${mediaB.id}/set-cover`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
+      .send({})
+      .expect(404);
+  });
+
+  it("blocks deleting another organization's property media", async () => {
+    const prisma = getPrisma(app);
+    const mediaB = await createTestPropertyMedia(prisma, { organizationId: organizationBId, propertyId: propertyBId });
+
+    await request(app.getHttpServer())
+      .delete(`/organizations/${organizationAId}/properties/${propertyBId}/media/${mediaB.id}`)
+      .set("Cookie", ownerA.cookieHeader)
+      .set("x-csrf-token", ownerA.csrfToken)
       .expect(404);
   });
 

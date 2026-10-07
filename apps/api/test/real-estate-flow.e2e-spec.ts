@@ -1,7 +1,7 @@
 import request from "supertest";
 import type { INestApplication } from "@nestjs/common";
 import { createTestContact } from "@yoyo/testing";
-import { buildTestApp, getPrisma, resetTestDatabase, resetTestRedis } from "./utils/test-app";
+import { buildTestApp, ensureTestBucket, getPrisma, resetTestDatabase, resetTestRedis } from "./utils/test-app";
 import { signupUser } from "./utils/auth-helpers";
 
 describe("Real estate: properties, lead linking, viewings, buyer preferences", () => {
@@ -9,6 +9,7 @@ describe("Real estate: properties, lead linking, viewings, buyer preferences", (
 
   beforeAll(async () => {
     app = await buildTestApp();
+    await ensureTestBucket();
   });
 
   afterAll(async () => {
@@ -77,6 +78,96 @@ describe("Real estate: properties, lead linking, viewings, buyer preferences", (
       .expect(200);
     expect(listRes.body.items).toHaveLength(1);
     expect(listRes.body.items[0].id).toBe(createRes.body.id);
+  });
+
+  it("uploads, reorders, covers, and deletes property media", async () => {
+    const { owner, organizationId } = await seedOrgWithContactAndLead();
+
+    const propertyRes = await request(app.getHttpServer())
+      .post(`/organizations/${organizationId}/properties`)
+      .set("Cookie", owner.cookieHeader)
+      .set("x-csrf-token", owner.csrfToken)
+      .send({ title: "Media test listing", propertyType: "APARTMENT", transactionType: "SALE" })
+      .expect(201);
+    const propertyId: string = propertyRes.body.id;
+
+    async function uploadOneMedia(): Promise<string> {
+      const presignRes = await request(app.getHttpServer())
+        .post(`/organizations/${organizationId}/properties/${propertyId}/media/presigned-upload`)
+        .set("Cookie", owner.cookieHeader)
+        .set("x-csrf-token", owner.csrfToken)
+        .send({ contentType: "image/jpeg", kind: "IMAGE" })
+        .expect(201);
+      expect(presignRes.body.key).toMatch(new RegExp(`^orgs/${organizationId}/properties/${propertyId}/`));
+
+      const putResponse = await fetch(presignRes.body.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: Buffer.from("fake jpeg bytes")
+      });
+      expect(putResponse.ok).toBe(true);
+
+      const createRes = await request(app.getHttpServer())
+        .post(`/organizations/${organizationId}/properties/${propertyId}/media`)
+        .set("Cookie", owner.cookieHeader)
+        .set("x-csrf-token", owner.csrfToken)
+        .send({ kind: "IMAGE", storageKey: presignRes.body.key, mimeType: "image/jpeg" })
+        .expect(201);
+      return createRes.body.id as string;
+    }
+
+    const firstId = await uploadOneMedia();
+    const secondId = await uploadOneMedia();
+
+    const afterCreateRes = await request(app.getHttpServer())
+      .get(`/organizations/${organizationId}/properties/${propertyId}/media`)
+      .set("Cookie", owner.cookieHeader)
+      .expect(200);
+    expect(afterCreateRes.body.map((m: { id: string }) => m.id)).toEqual([firstId, secondId]);
+    expect(afterCreateRes.body.find((m: { id: string }) => m.id === firstId).isCover).toBe(true);
+    expect(afterCreateRes.body.find((m: { id: string }) => m.id === secondId).isCover).toBe(false);
+
+    await request(app.getHttpServer())
+      .patch(`/organizations/${organizationId}/properties/${propertyId}/media/reorder`)
+      .set("Cookie", owner.cookieHeader)
+      .set("x-csrf-token", owner.csrfToken)
+      .send({ mediaIds: [secondId, firstId] })
+      .expect(200);
+
+    const afterReorderRes = await request(app.getHttpServer())
+      .get(`/organizations/${organizationId}/properties/${propertyId}/media`)
+      .set("Cookie", owner.cookieHeader)
+      .expect(200);
+    expect(afterReorderRes.body.map((m: { id: string }) => m.id)).toEqual([secondId, firstId]);
+
+    await request(app.getHttpServer())
+      .post(`/organizations/${organizationId}/properties/${propertyId}/media/${secondId}/set-cover`)
+      .set("Cookie", owner.cookieHeader)
+      .set("x-csrf-token", owner.csrfToken)
+      .send({})
+      .expect(201);
+
+    const afterCoverRes = await request(app.getHttpServer())
+      .get(`/organizations/${organizationId}/properties/${propertyId}/media`)
+      .set("Cookie", owner.cookieHeader)
+      .expect(200);
+    expect(afterCoverRes.body.find((m: { id: string }) => m.id === secondId).isCover).toBe(true);
+    expect(afterCoverRes.body.find((m: { id: string }) => m.id === firstId).isCover).toBe(false);
+
+    // Deleting the current cover (secondId) should promote the next-lowest-position row (firstId).
+    await request(app.getHttpServer())
+      .delete(`/organizations/${organizationId}/properties/${propertyId}/media/${secondId}`)
+      .set("Cookie", owner.cookieHeader)
+      .set("x-csrf-token", owner.csrfToken)
+      .expect(200);
+
+    const afterDeleteRes = await request(app.getHttpServer())
+      .get(`/organizations/${organizationId}/properties/${propertyId}/media`)
+      .set("Cookie", owner.cookieHeader)
+      .expect(200);
+    expect(afterDeleteRes.body).toHaveLength(1);
+    expect(afterDeleteRes.body[0].id).toBe(firstId);
+    expect(afterDeleteRes.body[0].isCover).toBe(true);
   });
 
   it("links and unlinks a lead to a property", async () => {

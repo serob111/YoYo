@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  addContentMediaAssetFromPropertyMediaSchema,
   addContentMediaAssetSchema,
   createContentItemSchema,
   enhanceImageSchema,
@@ -7,6 +8,7 @@ import {
   rejectContentItemSchema,
   scheduleContentItemSchema,
   updateContentItemSchema,
+  type AddContentMediaAssetFromPropertyMediaInput,
   type AddContentMediaAssetInput,
   type CreateContentItemInput,
   type EnhanceImageInput,
@@ -30,8 +32,13 @@ export class ContentController {
   constructor(private readonly content: ContentService) {}
 
   @Get()
-  async list(@Param("organizationId") organizationId: string, @Query("status") status?: string, @Query("connectedAccountId") connectedAccountId?: string) {
-    return this.content.list(organizationId, { status, connectedAccountId });
+  async list(
+    @Param("organizationId") organizationId: string,
+    @Query("status") status?: string,
+    @Query("connectedAccountId") connectedAccountId?: string,
+    @Query("propertyId") propertyId?: string
+  ) {
+    return this.content.list(organizationId, { status, connectedAccountId, propertyId });
   }
 
   @Get(":id")
@@ -86,6 +93,17 @@ export class ContentController {
   async removeMedia(@Param("organizationId") organizationId: string, @Param("id") id: string, @Param("mediaAssetId") mediaAssetId: string) {
     await this.content.removeMediaAsset(organizationId, id, mediaAssetId);
     return { success: true };
+  }
+
+  @Post(":id/media/from-property-media")
+  @RequireCapability("manageContent")
+  @UseGuards(CsrfGuard)
+  async addMediaFromPropertyMedia(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(addContentMediaAssetFromPropertyMediaSchema)) body: AddContentMediaAssetFromPropertyMediaInput
+  ) {
+    return this.content.addMediaAssetFromPropertyMedia(organizationId, id, body);
   }
 
   @Post(":id/generate-caption")

@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export interface StorageConfig {
@@ -63,5 +63,15 @@ export class StorageClient {
 
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  /** Server-side copy (no bytes through this process) - used to decouple a
+   * published post's media from its source (e.g. PropertyMedia) so deleting
+   * or replacing the source later can never affect an already-scheduled or
+   * published post. CopySource must be bucket-relative, not URL-encoded. */
+  async copyObject(sourceKey: string, destKey: string): Promise<void> {
+    await this.client.send(
+      new CopyObjectCommand({ Bucket: this.bucket, CopySource: `${this.bucket}/${sourceKey}`, Key: destKey })
+    );
   }
 }

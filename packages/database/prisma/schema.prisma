@@ -975,6 +975,13 @@ model ContentItem {
   organization           Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connectedAccountId     String
   connectedAccount       ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  // Optional - a post authored from a Property's "Publish" flow links back
+  // here so the Property's Social tab can show it; most ContentItems (posts
+  // authored outside the real-estate flow) leave this null. SetNull (not
+  // Cascade) so deleting a Property never destroys publish history/audit
+  // trail for a post that already went out.
+  propertyId             String?
+  property               Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   // Denormalized off connectedAccount - avoids a join for dispatch routing,
   // same reasoning as Message.provider / ContactIdentity.provider.
   provider               Provider
@@ -1021,6 +1028,7 @@ model ContentItem {
 
   @@index([organizationId, status, scheduledFor])
   @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, propertyId])
   @@map("content_items")
 }
 
@@ -1166,6 +1174,7 @@ model Property {
   leads               LeadProperty[]
   viewings            Viewing[]
   media               PropertyMedia[]
+  contentItems        ContentItem[]
   socialMediaItems    SocialMediaItem[]
   possibleExistingFor PropertyImportCandidate[] @relation("PossibleExistingProperty")
   importedFrom        PropertyImportCandidate[] @relation("ImportedProperty")
@@ -1425,6 +1434,12 @@ model PropertyMedia {
   // migration).
   storageKey              String?
   externalUrl             String?
+  // Null for rows predating this field (or externalUrl-only import rows,
+  // where content-type is read from the fetch response instead at copy
+  // time). Set for every manually-uploaded row going forward - needed
+  // because publishing a property's media to a ContentItem requires a real
+  // mimeType (ContentMediaAsset.mimeType is non-null).
+  mimeType                String?
   source                  PropertyMediaSource @default(MANUAL)
   sourceSocialMediaItemId String?
   sourceSocialMediaItem   SocialMediaItem?    @relation(fields: [sourceSocialMediaItemId], references: [id], onDelete: SetNull)

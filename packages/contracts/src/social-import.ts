@@ -99,9 +99,12 @@ export const sampleLeadSchema = z.object({
 });
 export type SampleLeadInput = z.infer<typeof sampleLeadSchema>;
 
+export const propertyMediaKindSchema = z.enum(["IMAGE", "VIDEO", "FLOORPLAN", "OTHER"]);
+export type PropertyMediaKind = z.infer<typeof propertyMediaKindSchema>;
+
 export const propertyMediaSchema = z.object({
   id: z.string().uuid(),
-  kind: z.enum(["IMAGE", "VIDEO", "FLOORPLAN", "OTHER"]),
+  kind: propertyMediaKindSchema,
   storageKey: z.string().nullable(),
   externalUrl: z.string().nullable(),
   source: z.enum(["MANUAL", "INSTAGRAM", "TIKTOK"]),
@@ -109,3 +112,26 @@ export const propertyMediaSchema = z.object({
   position: z.number().int()
 });
 export type PropertyMediaDto = z.infer<typeof propertyMediaSchema>;
+
+export const propertyMediaPresignedUploadRequestSchema = z.object({
+  contentType: z.string().min(1),
+  kind: propertyMediaKindSchema
+});
+export type PropertyMediaPresignedUploadRequestInput = z.infer<typeof propertyMediaPresignedUploadRequestSchema>;
+
+export const createPropertyMediaSchema = z
+  .object({
+    kind: propertyMediaKindSchema,
+    storageKey: z.string().min(1).optional(),
+    externalUrl: z.string().url().optional(),
+    mimeType: z.string().min(1).optional()
+  })
+  .refine((v) => (v.storageKey == null) !== (v.externalUrl == null), {
+    message: "Exactly one of storageKey or externalUrl must be set"
+  });
+export type CreatePropertyMediaInput = z.infer<typeof createPropertyMediaSchema>;
+
+export const reorderPropertyMediaSchema = z.object({
+  mediaIds: z.array(z.string().uuid()).min(1)
+});
+export type ReorderPropertyMediaInput = z.infer<typeof reorderPropertyMediaSchema>;

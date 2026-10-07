@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import type { PropertyStatus, PropertyType } from "@yoyo/database";
-import type { UpsertPropertyInput } from "@yoyo/contracts";
+import type { CreatePropertyMediaInput, PropertyMediaKind, UpsertPropertyInput } from "@yoyo/contracts";
 import { PrismaService } from "../common/prisma.service";
 import { OutboxService } from "../common/outbox.service";
+import { MediaService } from "../media/media.service";
 import { RequestContext } from "../common/request-context";
 import { NotFoundDomainError } from "../common/domain-errors";
 
@@ -10,7 +11,8 @@ import { NotFoundDomainError } from "../common/domain-errors";
 export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly outbox: OutboxService
+    private readonly outbox: OutboxService,
+    private readonly media: MediaService
   ) {}
 
   async list(
@@ -178,5 +180,74 @@ export class PropertiesService {
       orderBy: { postedAt: "desc" },
       select: { id: true, provider: true, mediaType: true, caption: true, permalink: true, postedAt: true, thumbnailUrl: true }
     });
+  }
+
+  async getMediaPresignedUploadUrl(organizationId: string, propertyId: string, contentType: string, kind: PropertyMediaKind) {
+    await this.getOrThrow(organizationId, propertyId);
+    return this.media.getPresignedUploadUrlForProperty(organizationId, propertyId, contentType, kind);
+  }
+
+  async createMedia(organizationId: string, propertyId: string, input: CreatePropertyMediaInput) {
+    await this.getOrThrow(organizationId, propertyId);
+    if (input.storageKey) this.media.assertOwnedByOrg(organizationId, input.storageKey);
+
+    const count = await this.prisma.client.propertyMedia.count({ where: { organizationId, propertyId } });
+    return this.prisma.client.propertyMedia.create({
+      data: {
+        organizationId,
+        propertyId,
+        kind: input.kind,
+        storageKey: input.storageKey ?? null,
+        externalUrl: input.externalUrl ?? null,
+        mimeType: input.mimeType ?? null,
+        source: "MANUAL",
+        position: count,
+        isCover: count === 0
+      }
+    });
+  }
+
+  async reorderMedia(organizationId: string, propertyId: string, mediaIds: string[]) {
+    await this.getOrThrow(organizationId, propertyId);
+    const existing = await this.prisma.client.propertyMedia.findMany({ where: { organizationId, propertyId } });
+    const existingIds = new Set(existing.map((m) => m.id));
+    if (mediaIds.length !== existing.length || !mediaIds.every((id) => existingIds.has(id))) {
+      throw new NotFoundDomainError("Media");
+    }
+
+    await this.prisma.client.$transaction(
+      mediaIds.map((id, index) => this.prisma.client.propertyMedia.update({ where: { id }, data: { position: index } }))
+    );
+  }
+
+  async setCoverMedia(organizationId: string, propertyId: string, mediaId: string) {
+    await this.getOrThrow(organizationId, propertyId);
+    const target = await this.prisma.client.propertyMedia.findUnique({ where: { id: mediaId } });
+    if (!target || target.organizationId !== organizationId || target.propertyId !== propertyId) {
+      throw new NotFoundDomainError("Media");
+    }
+
+    await this.prisma.client.$transaction([
+      this.prisma.client.propertyMedia.updateMany({ where: { organizationId, propertyId }, data: { isCover: false } }),
+      this.prisma.client.propertyMedia.update({ where: { id: mediaId }, data: { isCover: true } })
+    ]);
+  }
+
+  async removeMedia(organizationId: string, propertyId: string, mediaId: string) {
+    await this.getOrThrow(organizationId, propertyId);
+    const target = await this.prisma.client.propertyMedia.findUnique({ where: { id: mediaId } });
+    if (!target || target.organizationId !== organizationId || target.propertyId !== propertyId) {
+      throw new NotFoundDomainError("Media");
+    }
+
+    await this.prisma.client.propertyMedia.delete({ where: { id: mediaId } });
+
+    if (target.isCover) {
+      const next = await this.prisma.client.propertyMedia.findFirst({
+        where: { organizationId, propertyId },
+        orderBy: { position: "asc" }
+      });
+      if (next) await this.prisma.client.propertyMedia.update({ where: { id: next.id }, data: { isCover: true } });
+    }
   }
 }
