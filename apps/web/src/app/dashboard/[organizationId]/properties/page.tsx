@@ -11,6 +11,7 @@ import { useOrganization } from "@/lib/hooks";
 import { useCan } from "@/lib/permissions";
 import { useCreateProperty, useProperties } from "@/lib/properties-hooks";
 import { formatPrice } from "@/lib/format";
+import { PROPERTY_TYPE_LABELS } from "@/lib/property-labels";
 import { PropertyStatusBadge } from "@/components/property-status-badge";
 import { PropertyForm } from "@/components/property-form";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,7 @@ export default function PropertiesPage() {
                     </Link>
                   </TableCell>
                   <TableCell>{property.transactionType === "RENT" ? translateText("Rent") : translateText("Sale")}</TableCell>
-                  <TableCell>{property.propertyType}</TableCell>
+                  <TableCell>{translateText(PROPERTY_TYPE_LABELS[property.propertyType])}</TableCell>
                   <TableCell>
                     <PropertyStatusBadge status={property.status} />
                   </TableCell>

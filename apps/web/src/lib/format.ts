@@ -10,6 +10,18 @@ export function formatCents(cents: number | string | null, currency: string, loc
   return new Intl.NumberFormat(intlLocales[locale], { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(cents) / 100);
 }
 
+export function formatPropertyLocation(property: {
+  address: string | null;
+  district: string | null;
+  city: string | null;
+  country: string | null;
+}): string {
+  const parts = [property.address, property.district, property.city, property.country].filter(
+    (part): part is string => !!part && part.trim() !== ""
+  );
+  return parts.length > 0 ? parts.join(", ") : "—";
+}
+
 const RENT_PERIOD_SUFFIX: Record<"DAY" | "WEEK" | "MONTH", string> = {
   DAY: "/day",
   WEEK: "/wk",

@@ -81,6 +81,48 @@ export function usePropertyMedia(organizationId: string, propertyId: string) {
   });
 }
 
+function usePropertyMediaMutation<TVariables>(
+  organizationId: string,
+  propertyId: string,
+  mutationFn: (variables: TVariables) => Promise<unknown>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations", organizationId, "properties", propertyId, "media"] })
+  });
+}
+
+export function useReorderPropertyMedia(organizationId: string, propertyId: string) {
+  return usePropertyMediaMutation(organizationId, propertyId, (mediaIds: string[]) =>
+    apiRequest(`/organizations/${organizationId}/properties/${propertyId}/media/reorder`, { method: "PATCH", body: JSON.stringify({ mediaIds }) })
+  );
+}
+
+export function useSetCoverPropertyMedia(organizationId: string, propertyId: string) {
+  return usePropertyMediaMutation(organizationId, propertyId, (mediaId: string) =>
+    apiRequest(`/organizations/${organizationId}/properties/${propertyId}/media/${mediaId}/set-cover`, { method: "POST" })
+  );
+}
+
+export function useDeletePropertyMedia(organizationId: string, propertyId: string) {
+  return usePropertyMediaMutation(organizationId, propertyId, (mediaId: string) =>
+    apiRequest(`/organizations/${organizationId}/properties/${propertyId}/media/${mediaId}`, { method: "DELETE" })
+  );
+}
+
+// Presigned URLs expire in 15 minutes server-side (StorageClient's default) -
+// a 5 minute staleTime keeps thumbnails refreshing well before that without
+// re-signing on every render.
+export function useMediaDownloadUrl(organizationId: string, key: string | null) {
+  return useQuery<{ url: string }>({
+    queryKey: ["organizations", organizationId, "media", "presigned-download", key],
+    queryFn: () => apiRequest(`/organizations/${organizationId}/media/presigned-download?key=${encodeURIComponent(key!)}`),
+    enabled: key != null,
+    staleTime: 5 * 60 * 1000
+  });
+}
+
 export function usePropertySocialSources(organizationId: string, propertyId: string) {
   return useQuery<PropertySocialSource[]>({
     queryKey: ["organizations", organizationId, "properties", propertyId, "social-sources"],
