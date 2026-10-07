@@ -169,6 +169,19 @@
   background: var(--cream);
 }
 
+.inlineLink {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  margin-top: -6px;
+}
+.inlineLink:hover {
+  color: var(--ink);
+}
+
 .footerText {
   text-align: center;
   font-size: 13px;

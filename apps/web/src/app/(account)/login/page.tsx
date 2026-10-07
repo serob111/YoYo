@@ -56,6 +56,9 @@ export default function LoginPage() {
         <label className={styles.field}>
            {translateText("Password")} <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
+        <Link href="/forgot-password" className={styles.inlineLink}>
+          {translateText("Forgot password?")}
+        </Link>
         {error && (
           <p className={styles.error}>
             <WarningCircle weight="bold" style={{ flexShrink: 0, marginTop: 2 }} />
