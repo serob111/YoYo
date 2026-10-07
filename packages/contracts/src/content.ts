@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const contentPostTypeSchema = z.enum(["IMAGE", "VIDEO", "CAROUSEL"]);
+export type ContentPostType = z.infer<typeof contentPostTypeSchema>;
 export const contentItemStatusSchema = z.enum([
   "DRAFT",
   "GENERATING",
@@ -13,6 +14,7 @@ export const contentItemStatusSchema = z.enum([
   "PUBLISH_FAILED",
   "CANCELLED"
 ]);
+export type ContentItemStatus = z.infer<typeof contentItemStatusSchema>;
 export const mediaAssetKindSchema = z.enum(["IMAGE", "VIDEO"]);
 export type MediaAssetKind = z.infer<typeof mediaAssetKindSchema>;
 export const mediaAssetStatusSchema = z.enum(["UPLOADED", "ENHANCING", "ENHANCED", "ENHANCEMENT_FAILED"]);
@@ -22,6 +24,7 @@ export const contentMediaAssetSchema = z.object({
   contentItemId: z.string().uuid(),
   order: z.number().int().min(0),
   kind: mediaAssetKindSchema,
+  storageKey: z.string(),
   mimeType: z.string(),
   byteSize: z.number().int().nullable(),
   status: mediaAssetStatusSchema,

@@ -8,12 +8,16 @@ import { useParams, useRouter } from "next/navigation";
 import type { CreateViewingInput } from "@yoyo/contracts";
 import { useOrganization } from "@/lib/hooks";
 import { useCan } from "@/lib/permissions";
-import { useDeleteProperty, useLinkLeadToProperty, useProperty, usePropertyMedia, usePropertySocialSources, useUnlinkLeadFromProperty } from "@/lib/properties-hooks";
+import { useDeleteProperty, useLinkLeadToProperty, useProperty, usePropertyMedia, useUnlinkLeadFromProperty } from "@/lib/properties-hooks";
 import { useCreateViewing, useUpdateViewingStatus, useViewings } from "@/lib/viewings-hooks";
+import { useContentItems } from "@/lib/content-hooks";
 import { formatCents, formatPrice, formatPropertyLocation } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, PROPERTY_VISIBILITY_LABELS, TRANSACTION_TYPE_LABELS } from "@/lib/property-labels";
 import { PropertyStatusBadge } from "@/components/property-status-badge";
 import { PropertyMediaManager, PropertyMediaThumbnail } from "@/components/property-media-manager";
+import { PropertySocialTab } from "@/components/property-social-tab";
+import { PropertyActivityTab } from "@/components/property-activity-tab";
+import { PropertyPublishDialog } from "@/components/property-publish-dialog";
 import { LeadPicker, type PickedLead } from "@/components/lead-picker";
 import { ViewingForm } from "@/components/viewing-form";
 import { Button } from "@/components/ui/button";
@@ -52,7 +56,7 @@ export default function PropertyDetailPage() {
   const unlinkLead = useUnlinkLeadFromProperty(organizationId, propertyId);
   const { data: viewings } = useViewings(organizationId, { propertyId });
   const { data: media } = usePropertyMedia(organizationId, propertyId);
-  const { data: socialSources } = usePropertySocialSources(organizationId, propertyId);
+  const { data: contentItems } = useContentItems(organizationId, { propertyId });
   const createViewing = useCreateViewing(organizationId);
   const updateViewingStatus = useUpdateViewingStatus(organizationId);
 
@@ -60,6 +64,7 @@ export default function PropertyDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [linkPick, setLinkPick] = useState<PickedLead | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
 
   function handleDelete() {
     // Disable useProperty before the mutation resolves - the list invalidation
@@ -126,9 +131,10 @@ export default function PropertyDetailPage() {
             <Button variant="outline" onClick={() => setActiveTab("media")}>
               {translateText("Add media")}
             </Button>
-            <Button variant="outline" disabled title={translateText("Publishing from Property is coming soon")}>
+            <Button variant="outline" onClick={() => setPublishOpen(true)}>
               {translateText("Publish")}
             </Button>
+            <PropertyPublishDialog open={publishOpen} onOpenChange={setPublishOpen} organizationId={organizationId} property={property} />
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="outline" size="icon" />}>
                 <MoreHorizontalIcon className="size-4" />
@@ -165,6 +171,7 @@ export default function PropertyDetailPage() {
           <TabsTrigger value="leads">{translateText("Leads")}</TabsTrigger>
           <TabsTrigger value="viewings">{translateText("Viewings")}</TabsTrigger>
           <TabsTrigger value="social">{translateText("Social")}</TabsTrigger>
+          <TabsTrigger value="activity">{translateText("Activity")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -274,30 +281,11 @@ export default function PropertyDetailPage() {
         </TabsContent>
 
         <TabsContent value="social">
-          {(!socialSources || socialSources.length === 0) && (
-            <p className="text-sm text-muted-foreground">{translateText("No social activity for this property yet.")}</p>
-          )}
-          {socialSources && socialSources.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {socialSources.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.permalink ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm hover:border-foreground/30"
-                >
-                  <div className="min-w-0">
-                    <span className="font-medium">
-                      {item.provider === "INSTAGRAM" ? "Instagram" : "TikTok"} · {translateText(item.mediaType)}
-                    </span>
-                    {item.caption && <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.caption}</p>}
-                  </div>
-                  {item.postedAt && <span className="shrink-0 text-xs text-muted-foreground">{new Date(item.postedAt).toLocaleDateString(intlLocale)}</span>}
-                </a>
-              ))}
-            </div>
-          )}
+          <PropertySocialTab organizationId={organizationId} propertyId={propertyId} />
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <PropertyActivityTab property={property} viewings={viewings ?? []} contentItems={contentItems ?? []} />
         </TabsContent>
       </Tabs>
     </div>
